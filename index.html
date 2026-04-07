@@ -1024,7 +1024,7 @@ input[type=range]::-webkit-slider-thumb {
 
   <!-- TOPBAR -->
   <div id="topbar">
-    <div class="logo">Q<span>S</span>V2</div>
+    <div class="logo">Q<span>S</span>V2 <span style="font-size:9px;color:var(--t3);font-weight:400">v3.0</span></div>
 
     <div id="wsBadge" class="ws-badge">
       <span class="ws-dot" id="wsDot"></span>
@@ -1233,6 +1233,15 @@ input[type=range]::-webkit-slider-thumb {
           <div class="tech-cell full" style="border-bottom:none"><span class="tech-key">Kelly</span><span class="tech-val" id="tKelly">—</span></div>
         </div>
 
+        <!-- Backtest UI (P2-B) -->
+        <div style="padding:8px 14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--surface)">
+          <button id="btBtn" onclick="runBacktest()"
+            style="height:32px;padding:0 14px;border-radius:8px;border:1px solid rgba(91,141,239,.4);background:rgba(91,141,239,.08);color:var(--blue);font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap">
+            ▶ Backtest 7j
+          </button>
+          <span style="font-size:9px;color:var(--t3)">→ <span id="btCoin" style="color:var(--gold)">BTC</span> · <span id="btStrat" style="color:var(--t2)">V12</span></span>
+        </div>
+        <div id="btResults" style="padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0"></div>
         <div class="log-header">
           <span>Heure</span><span>D</span><span>Coin</span><span>Prix</span><span style="text-align:right">P&L</span><span style="text-align:right">Exit</span>
         </div>
@@ -1273,8 +1282,12 @@ input[type=range]::-webkit-slider-thumb {
     <div class="sb-item"><span class="sb-key">Ticks</span><span class="sb-val" id="sbTicks">0</span></div>
     <div class="sb-item"><span class="sb-key">Régime</span><span class="sb-val" id="sbRegime">RANGE</span></div>
     <div class="sb-item"><span class="sb-key">Wallet</span><span class="sb-val" id="sbWallet">—</span></div>
+    <div style="display:flex;align-items:center;gap:5px">
+      <span style="color:var(--t4);text-transform:uppercase;letter-spacing:.5px;font-size:9px">IDB</span>
+      <span id="sbIDB" style="color:var(--t4);font-size:9px;font-weight:500">—</span>
+    </div>
     <div class="sb-spacer"></div>
-    <div class="sb-brand">JULIO45SLIFE · QUANT SUITE V2</div>
+    <div class="sb-brand">JULIO45SLIFE · QUANT SUITE V2 v3.0</div>
   </div>
 
 </div><!-- /app -->
@@ -1634,7 +1647,14 @@ function closePos(exit){
   if(res==='L'){S.cbConsec++;if(S.cbConsec>=S.cbThr&&!S.cbHalt){S.cbHalt=true;S.cbCool=10;toast(`⚡ Circuit Breaker — ${S.cbConsec} pertes — HALT`,'err');}}
   else S.cbConsec=0;
   S.lastTrade[p.coin]=Date.now();S.cooldown=exit==='SL'?16:S.strat==='scalper'?4:8;
-  addLog(p.coin,p.isBuy?'L':'S',p.entryPx,net,{SL:'SL',BE:'BE',TRAIL:'TRAIL',TP:'TP',TIMEOUT:'CLO'}[exit]||exit);
+  const exitLabel={SL:'SL',BE:'BE',TRAIL:'TRAIL',TP:'TP',TIMEOUT:'CLO'}[exit]||exit;
+  addLog(p.coin,p.isBuy?'L':'S',p.entryPx,net,exitLabel);
+  // Persistance IndexedDB
+  idbSaveTrade({ts:Date.now(),coin:p.coin,dir:p.isBuy?'L':'S',entry:p.entryPx,exit:p.currentPx,net,pct:p.pnlPct,lev:p.lev,strat:S.strat,exitLabel,mode:S.mode});
+  idbSaveSession().then(()=>{
+    const sbIDB=document.getElementById('sbIDB');
+    if(sbIDB){ sbIDB.textContent=`${S.trades}T`; sbIDB.style.color='var(--green)'; }
+  }).catch(()=>{});
   if(S.mode==='live'&&S.walletConnected)hlCloseOrder(p).catch(e=>toast('Fermeture échouée: '+e.message,'err'));
   S.pos=null;renderPos();updateCap();updateStats();renderCB();drawEquity();
 }
@@ -1718,9 +1738,35 @@ async function hlOpenOrder(coin,isBuy,lev,margin,notional,px,score,conf){
   if(result.status!=='ok'){throw new Error(result.response?.data?.statuses?.[0]?.error||'Ordre rejeté');}
   const st=result.response?.data?.statuses?.[0];
   if(st?.error)throw new Error(st.error);
-  if(st?.filled)toast(`✅ FILLED @ $${parseFloat(st.filled.avgPx||px).toFixed(2)}`,'ok');
+  if(st?.filled){
+    const avgPx=parseFloat(st.filled.avgPx||px);
+    toast(`✅ FILLED @ $${avgPx.toFixed(2)}`,'ok');
+    // Placer TP/SL natifs Hyperliquid (survivent si navigateur fermé)
+    const tpPx = isBuy ? avgPx*(1+T.TP) : avgPx*(1-T.TP);
+    const slPx = isBuy ? avgPx*(1-Math.max(.015,Math.min(.045,(atrM[coin]||0)*1.5/(avgPx||1)))) 
+                       : avgPx*(1+Math.max(.015,Math.min(.045,(atrM[coin]||0)*1.5/(avgPx||1))));
+    hlSetTPSL(coin, asset, sz, isBuy, tpPx, slPx).catch(e=>console.warn('[QSV2] TP/SL natif:',e.message));
+  }
   return true;
 }
+async function hlSetTPSL(coin, asset, sz, isBuy, tpPx, slPx) {
+  // Ordres trigger natifs HL — survivent à la fermeture du navigateur
+  if(!S.signer) return;
+  const pxDec = Math.max(0, 5-Math.max(0, Math.floor(Math.log10(tpPx))+1));
+  const szStr  = sz.toFixed(asset.szDecimals);
+  const tpslOrders = [
+    // Take Profit
+    {a:asset.index, b:!isBuy, p:tpPx.toFixed(pxDec), s:szStr, r:true,
+     t:{trigger:{triggerPx:tpPx.toFixed(pxDec), isMarket:true, tpsl:'tp'}}},
+    // Stop Loss
+    {a:asset.index, b:!isBuy, p:slPx.toFixed(pxDec), s:szStr, r:true,
+     t:{trigger:{triggerPx:slPx.toFixed(pxDec), isMarket:true, tpsl:'sl'}}},
+  ];
+  const nonce = Date.now();
+  const result = await hlSign({type:'order', orders:tpslOrders, grouping:'tpsl'}, nonce);
+  if(result.status==='ok') toast(`🎯 TP $${tpPx.toFixed(2)} / SL $${slPx.toFixed(2)} posés sur HL`,'info');
+}
+
 async function hlCloseOrder(pos){
   if(!S.signer||!pos)return;
   const asset=await hlGetAsset(pos.coin);
@@ -2002,6 +2048,7 @@ function setStrat(s){
   else if(s==='scalper'){setLev(5);upCpt('10');}else if(s==='trend'){setLev(3);upCpt('15');}
   else{setLev(20);upCpt('20');}
   toast(`Stratégie ${s.toUpperCase()} activée`,'info');
+  const bts=document.getElementById('btStrat'); if(bts) bts.textContent=s.toUpperCase();
 }
 function setMode(m){
   S.mode=m;updateModeUI();
@@ -2022,6 +2069,7 @@ function setCoin(c,silent=false){
   document.querySelectorAll('.coin-btn').forEach(b=>b.classList.toggle('active',b.textContent===c));
   if(ws&&wsOk)wsSend({method:'subscribe',subscription:{type:'l2Book',coin:c}});
   if(!silent)toast(`${c}-PERP sélectionné`,'info');
+  const btc=document.getElementById('btCoin'); if(btc) btc.textContent=c;
 }
 function setLev(v){
   S.lev=parseInt(v);
@@ -2038,8 +2086,9 @@ function resetSess(){
   S.capital=10;S.init=10;S.peak=10;S.trades=0;S.wins=0;S.totalPnl=0;S.maxDD=0;
   S.eqH=[10];S.pnlH=[];S.cbConsec=0;S.cbHalt=false;S.cbCool=0;S.cbRecent=[];
   LOGD.length=0;
+  idbClearAll(); // Efface aussi l'historique persistant IndexedDB
   const lb=document.getElementById('logBody');if(lb)lb.innerHTML='<div style="padding:16px;text-align:center;font-size:10px;color:var(--t3)">En attente…</div>';
-  updateCap();updateStats();renderCB();drawEquity();toast('Session réinitialisée','ok');
+  updateCap();updateStats();renderCB();drawEquity();toast('Session + historique réinitialisés','ok');
 }
 
 /* ═══ UTILS ═══ */
@@ -2057,6 +2106,271 @@ function toast(msg,type='ok'){
   setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},3500);
 }
 
+
+/* ═══ PERSISTANCE IndexedDB (P1-A) ═══
+   Sauvegarde automatique : historique trades, stats, capital
+   entre sessions. Restaure au boot suivant. */
+
+const DB_NAME = 'QuantSuiteV2';
+const DB_VER  = 1;
+let idb = null;
+
+function openIDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('trades'))
+        db.createObjectStore('trades', {keyPath:'id', autoIncrement:true});
+      if (!db.objectStoreNames.contains('session'))
+        db.createObjectStore('session', {keyPath:'key'});
+    };
+    req.onsuccess = e => { idb = e.target.result; res(idb); };
+    req.onerror   = () => { console.warn('[QSV2] IndexedDB non disponible'); res(null); };
+  });
+}
+
+async function idbSaveTrade(record) {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction('trades', 'readwrite');
+    tx.objectStore('trades').add(record);
+  } catch(e) { console.warn('[QSV2] idbSaveTrade:', e.message); }
+}
+
+async function idbSaveSession() {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction('session', 'readwrite');
+    const store = tx.objectStore('session');
+    store.put({key:'stats', data:{
+      capital: S.capital, init: S.init, peak: S.peak,
+      trades: S.trades, wins: S.wins, totalPnl: S.totalPnl,
+      maxDD: S.maxDD, pnlH: S.pnlH, eqH: S.eqH.slice(-200),
+    }});
+  } catch(e) { console.warn('[QSV2] idbSaveSession:', e.message); }
+}
+
+async function idbRestoreSession() {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction('session', 'readonly');
+    const req = tx.objectStore('session').get('stats');
+    req.onsuccess = e => {
+      const d = e.target.result?.data;
+      if (!d) return;
+      S.capital = d.capital || 10; S.init = d.init || 10; S.peak = d.peak || 10;
+      S.trades  = d.trades  || 0;  S.wins = d.wins || 0;
+      S.totalPnl= d.totalPnl|| 0;  S.maxDD= d.maxDD|| 0;
+      S.pnlH    = d.pnlH   || [];  S.eqH  = d.eqH  || [10];
+      updateCap(); updateStats(); drawEquity();
+      if (S.trades > 0) {
+      toast(`Session restaurée — ${S.trades} trades historiques`,'info');
+      const sbIDB = document.getElementById('sbIDB');
+      if(sbIDB){ sbIDB.textContent=`${S.trades}T`; sbIDB.style.color='var(--green)'; }
+    }
+    };
+  } catch(e) { console.warn('[QSV2] idbRestoreSession:', e.message); }
+}
+
+async function idbLoadTradeHistory() {
+  if (!idb) return [];
+  return new Promise(res => {
+    try {
+      const tx  = idb.transaction('trades', 'readonly');
+      const req = tx.objectStore('trades').getAll();
+      req.onsuccess = e => res((e.target.result||[]).reverse().slice(0,200));
+      req.onerror   = () => res([]);
+    } catch(e) { res([]); }
+  });
+}
+
+async function idbClearAll() {
+  if (!idb) return;
+  try {
+    ['trades','session'].forEach(store => {
+      const tx = idb.transaction(store, 'readwrite');
+      tx.objectStore(store).clear();
+    });
+    toast('Historique persistant effacé','info');
+  } catch(e) {}
+}
+
+
+/* ═══ SELF-TESTS (P1-B) ═══
+   Tests unitaires légers sur les calculs critiques.
+   Lancés automatiquement au boot, résultats en console. */
+
+function runSelfTests() {
+  const results = [];
+  const assert = (name, actual, expected, tol=0.01) => {
+    const ok = Math.abs(actual - expected) <= tol || actual === expected;
+    results.push({name, ok, actual, expected});
+    if(!ok) console.warn(`[QSV2 TEST FAIL] ${name}: got ${actual}, expected ${expected}`);
+  };
+
+  // Test calcRSI
+  const flat50 = Array(20).fill(100);
+  assert('RSI flat = 50', calcRSI(flat50), 50, 5);
+
+  // Test EMA convergence
+  const prices = Array(30).fill(200);
+  let e = null;
+  for(const pr of prices) e = (e ? e*(1-2/10)+pr*(2/10) : pr);
+  assert('EMA converge vers prix', e, 200, 1);
+
+  // Test calcATR = 0 sur prix plat
+  const flat = Array(15).fill(100);
+  assert('ATR flat = 0', calcATR(flat), 0, 0.001);
+
+  // Test kelly retourne défaut si pas d'historique
+  const origH = S.pnlH;
+  S.pnlH = [];
+  assert('Kelly défaut = 0.15', kelly(), 0.15, 0.001);
+  S.pnlH = origH;
+
+  // Test scoreV12 neutre sur données vides
+  const sc = scoreV12('BTC');
+  assert('V12 neutre sans données', sc.dir === 'neutral' ? 1 : 0, 1, 0);
+
+  // Test OFI retourne 50 sur historique vide
+  const origOfi = [...(ofiH['BTC']||[])];
+  ofiH['BTC'] = [];
+  assert('OFI vide = 50', getOFI('BTC'), 50, 0.1);
+  ofiH['BTC'] = origOfi;
+
+  const passed = results.filter(r=>r.ok).length;
+  const total  = results.length;
+  console.log(`[QSV2 TESTS] ${passed}/${total} passed`);
+  if(passed === total) {
+    console.log('[QSV2 TESTS] ✅ Tous les tests passés');
+  } else {
+    results.filter(r=>!r.ok).forEach(r=>console.error(`[QSV2 TEST FAIL] ${r.name}`));
+  }
+  return {passed, total};
+}
+
+
+/* ═══ BACKTEST LÉGER (P2-B) ═══
+   Charge les candles HL REST sur 7j → rejoue la stratégie active
+   Résultats : nb trades, win rate, PnL total, max DD, Sharpe */
+
+async function runBacktest() {
+  const coin = S.coin;
+  const btn  = document.getElementById('btBtn');
+  if(btn){ btn.textContent='⏳ Chargement...'; btn.disabled=true; }
+  toast(`Backtest ${S.strat.toUpperCase()} ${coin} 7j…`,'info');
+
+  try {
+    // Charger 7j de candles 15m
+    const now  = Date.now();
+    const start = now - 7*24*60*60*1000;
+    const r = await fetch(HL_INFO, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'candleSnapshot', req:{coin, interval:'15m', startTime:start, endTime:now}}),
+      signal: AbortSignal.timeout(15000)
+    });
+    if(!r.ok) throw new Error('API HL indisponible');
+    const candles = await r.json();
+    if(!Array.isArray(candles)||candles.length<20) throw new Error('Pas assez de données');
+
+    // Rejouer la stratégie
+    const prices = candles.map(c=>parseFloat(c.c));
+    const highs  = candles.map(c=>parseFloat(c.h));
+    const lows   = candles.map(c=>parseFloat(c.l));
+    const vols   = candles.map(c=>parseFloat(c.v));
+
+    let capital=100, peak=100, maxDD=0, trades=0, wins=0, pnlSum=0, pnlSq=0;
+    const WINSIZE = 60; // fenêtre glissante indicateurs
+
+    for(let i=WINSIZE; i<prices.length-1; i++){
+      const slice = prices.slice(i-WINSIZE, i);
+      // Calculer EMA 9/21/50
+      let e9=slice[0],e21=slice[0],e50=slice[0];
+      for(const pr of slice){e9=(e9*(1-2/10)+pr*(2/10));e21=(e21*(1-2/22)+pr*(2/22));e50=(e50*(1-2/51)+pr*(2/51));}
+      const px  = prices[i];
+      const rsi = calcRSI(slice);
+      // Momentum simple
+      const mom = (prices[i]-prices[i-5])/prices[i-5]*100;
+      
+      let dir = 'neutral';
+      if(S.strat==='v12'||S.strat==='ultra'){
+        const bullS = px>e9&&e9>e21&&e21>e50;
+        const bearS = px<e9&&e9<e21&&e21<e50;
+        if(bullS && rsi>42&&rsi<66 && mom>0) dir='bull';
+        if(bearS && rsi>34&&rsi<61 && mom<0) dir='bear';
+      } else if(S.strat==='trend'){
+        let e55=slice[0];
+        for(const pr of slice) e55=(e55*(1-2/56)+pr*(2/56));
+        if(e21>e55&&px>e21&&mom>1.5) dir='bull';
+        if(e21<e55&&px<e21&&mom<-1.5) dir='bear';
+      } else if(S.strat==='scalper'){
+        const e3=slice.slice(-3).reduce((a,b)=>a+b,0)/3;
+        const e8=slice.slice(-8).reduce((a,b)=>a+b,0)/8;
+        const pe3=slice.slice(-4,-1).reduce((a,b)=>a+b,0)/3;
+        const pe8=slice.slice(-9,-1).reduce((a,b)=>a+b,0)/8;
+        if(e3>e8&&pe3<=pe8&&rsi<65) dir='bull';
+        if(e3<e8&&pe3>=pe8&&rsi>35) dir='bear';
+      } else { // julio
+        // MACD simplifié
+        let me12=slice[0],me26=slice[0],msig=0;
+        for(const pr of slice){me12=(me12*(1-2/13)+pr*(2/13));me26=(me26*(1-2/27)+pr*(2/27));}
+        const mh=(me12-me26);
+        const bb_slice=slice.slice(-20);
+        const bb_mid=bb_slice.reduce((a,b)=>a+b,0)/20;
+        const bb_std=Math.sqrt(bb_slice.reduce((s,v)=>s+(v-bb_mid)**2,0)/20);
+        if(mh>0&&px<bb_mid-bb_std) dir='bull';
+        if(mh<0&&px>bb_mid+bb_std) dir='bear';
+      }
+      if(dir==='neutral') continue;
+
+      // Simuler le trade : TP +5% ou SL -2% sur la prochaine bougie
+      const entry = prices[i];
+      const tp = dir==='bull' ? entry*1.05 : entry*0.95;
+      const sl = dir==='bull' ? entry*0.98 : entry*1.02;
+      let pnlPct = 0;
+      for(let j=i+1; j<Math.min(i+20,prices.length); j++){
+        const hi=highs[j], lo=lows[j];
+        if(dir==='bull'){
+          if(hi>=tp){pnlPct=.05;break;}
+          if(lo<=sl){pnlPct=-.02;break;}
+        } else {
+          if(lo<=tp){pnlPct=.05;break;}
+          if(hi>=sl){pnlPct=-.02;break;}
+        }
+      }
+      const net = capital * Math.min(S.cpt/100,.15) * S.lev * pnlPct - capital*.0007;
+      capital += net; trades++;
+      if(net>0) wins++;
+      pnlSum += pnlPct; pnlSq += pnlPct*pnlPct;
+      if(capital>peak) peak=capital;
+      maxDD = Math.max(maxDD,(peak-capital)/peak*100);
+      i += 8; // skip quelques bougies après un trade
+    }
+
+    const wr  = trades>0?(wins/trades*100).toFixed(1):0;
+    const pnl = (capital-100).toFixed(2);
+    const sharpe = trades>1 ? ((pnlSum/trades)/Math.sqrt(Math.max(0.0001,pnlSq/trades-(pnlSum/trades)**2))*Math.sqrt(252)).toFixed(2) : 'N/A';
+
+    // Afficher les résultats
+    const el = document.getElementById('btResults');
+    if(el) el.innerHTML =
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 0">` +
+      `<div style="font-size:9px;color:var(--t3)">Trades simulés</div><div style="font-size:11px;font-weight:600;color:var(--t1)">${trades}</div>` +
+      `<div style="font-size:9px;color:var(--t3)">Win Rate</div><div style="font-size:11px;font-weight:600;color:${parseFloat(wr)>=50?'var(--green)':'var(--red)'}">${wr}%</div>` +
+      `<div style="font-size:9px;color:var(--t3)">PnL simulé</div><div style="font-size:11px;font-weight:600;color:${parseFloat(pnl)>=0?'var(--green)':'var(--red)'}">${parseFloat(pnl)>=0?'+':''}$${pnl}</div>` +
+      `<div style="font-size:9px;color:var(--t3)">Max Drawdown</div><div style="font-size:11px;font-weight:600;color:var(--red)">-${maxDD.toFixed(1)}%</div>` +
+      `<div style="font-size:9px;color:var(--t3)">Sharpe ratio</div><div style="font-size:11px;font-weight:600;color:var(--blue)">${sharpe}</div>` +
+      `<div style="font-size:9px;color:var(--t3)">Candles</div><div style="font-size:11px;color:var(--t3)">${candles.length} x 15m</div>` +
+      `</div>`;
+    toast(`Backtest OK — ${trades} trades, WR ${wr}%, PnL $${pnl}`,'ok');
+  } catch(e) {
+    toast('Backtest échoué: '+e.message,'err');
+  } finally {
+    if(btn){ btn.textContent='▶ Backtest 7j'; btn.disabled=false; }
+  }
+}
+
 /* ═══ BOOT ═══ */
 const BOOT=['V12 · JULIO · ULTRA…','SCALPER · TREND…','MetaMask EIP-712…','WebSocket Hyperliquid…','Kelly adaptatif · CB…','Interface premium…','Prêt.'];
 async function boot(){
@@ -2072,6 +2386,7 @@ async function boot(){
     applyLayout();
     setStrat('v12');
     setTimeout(()=>openModal(),600);
+    toast("QUANT SUITE V2 v3.0 — Persistance IDB · Backtest 7j · TP/SL HL","info");
     connectWS();
     setTimeout(()=>{if(!wsOk)startSim();},3500);
     setInterval(()=>{if(!S.running)runScanner();},2500);
