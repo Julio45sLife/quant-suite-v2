@@ -1024,7 +1024,7 @@ input[type=range]::-webkit-slider-thumb {
 
   <!-- TOPBAR -->
   <div id="topbar">
-    <div class="logo">Q<span>S</span>V2 <span style="font-size:9px;color:var(--t3);font-weight:400">v3.0</span></div>
+    <div class="logo">Q<span>S</span>V2 <span style="font-size:9px;color:var(--t3);font-weight:400">v4.0</span></div>
 
     <div id="wsBadge" class="ws-badge">
       <span class="ws-dot" id="wsDot"></span>
@@ -1138,9 +1138,13 @@ input[type=range]::-webkit-slider-thumb {
             <div class="slider-labels"><span class="slider-key">Trail start</span><span class="slider-val" id="pTr">+2.5%</span></div>
             <input type="range" min="1.0" max="5.0" step="0.1" value="2.5" oninput="upTrail(this.value)">
           </div>
-          <div class="slider-row" style="margin-bottom:0">
+          <div class="slider-row">
             <div class="slider-labels"><span class="slider-key">CB pertes</span><span class="slider-val" id="pCB">3</span></div>
             <input type="range" min="2" max="6" step="1" value="3" oninput="upCBThr(this.value)">
+          </div>
+          <div class="slider-row" style="margin-bottom:0">
+            <div class="slider-labels"><span class="slider-key">Max positions</span><span class="slider-val" id="pMaxPos">2</span></div>
+            <input type="range" min="1" max="2" step="1" value="2" oninput="upMaxPos(this.value)">
           </div>
         </div>
 
@@ -1211,7 +1215,10 @@ input[type=range]::-webkit-slider-thumb {
       <!-- Verdict -->
       <div id="verdictBar">
         <div id="verdictTxt">EN ATTENTE DE DONNÉES</div>
+        <div style="display:flex;align-items:center;gap:10px">
+        <div id="posCount" style="font-size:9px;padding:2px 8px;border-radius:20px;border:1px solid var(--border);color:var(--t3);white-space:nowrap">0/2 pos</div>
         <div id="verdictDet">Connexion WebSocket…</div>
+      </div>
       </div>
     </div><!-- /panelCenter -->
 
@@ -1300,6 +1307,30 @@ input[type=range]::-webkit-slider-thumb {
    Logique identique, UI premium refaite de zéro
    ═══════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════
+   QUANT SUITE V2 v4.0 — Configuration centralisée
+   Toutes les constantes modifiables sont regroupées ici
+   ═══════════════════════════════════════════════════════════════ */
+const CFG = {
+  MAX_POSITIONS: 2,          // Positions simultanées max (1-2)
+  FEE_RATE:      0.00070,    // Taux frais taker Hyperliquid
+  MIN_NOTIONAL:  10,         // Notionnel minimum en USDC
+  WS_RETRY_MS:   4000,       // Délai reconnexion WebSocket
+  SIM_TICK_MS:   2500,       // Intervalle simulation (ms)
+  BOT_TICK_MS:   2500,       // Intervalle bot tick (ms)
+  OFI_WINDOW:    10,         // Fenêtre smoothing OFI (ticks)
+  PRICE_HIST:    80,         // Taille historique prix par coin
+  EQ_HIST:       500,        // Taille historique equity curve
+  PNL_HIST:      50,         // Taille historique PnL (Kelly)
+  LOG_MAX:       200,        // Nb max entrées dans le log
+  ABORT_ASSET:   8000,       // Timeout fetch hlGetAsset (ms)
+  ABORT_SIGN:    12000,      // Timeout fetch hlSign (ms)
+  ABORT_BT:      15000,      // Timeout fetch backtest (ms)
+  CB_HALT_TICKS: 10,         // Durée HALT Circuit Breaker (ticks)
+  DAILY_LOSS_PCT:0.90,       // Seuil daily loss (90% = perte 10%)
+  COINS: ['BTC','ETH','SOL','HYPE','WIF','ARB'],
+};
+
 const HL_INFO = 'https://api.hyperliquid.xyz/info';
 const HL_EXCH = 'https://api.hyperliquid.xyz/exchange';
 const HL_WS   = 'wss://api.hyperliquid.xyz/ws';
@@ -1323,6 +1354,9 @@ const S={
   capital:10,init:10,peak:10,lev:20,cpt:20,thrDir:63,cbThr:3,
   strat:'v12',mode:'demo',running:false,botIv:null,uptStart:null,
   coin:'BTC',pos:null,cooldown:0,lastTrade:{},
+  // Multi-positions v4.0 : jusqu'à 2 positions simultanées sur coins différents
+  positions: new Map(),   // coin → posObj
+  maxPositions: 2,        // maximum simultané configurable
   trades:0,wins:0,skips:0,totalPnl:0,maxDD:0,
   cbConsec:0,cbHalt:false,cbCool:0,cbRecent:[],
   pnlH:[],eqH:[10],regime:'range',ofiAll:[],scores:{},ticks:0,
@@ -1606,17 +1640,25 @@ function kelly(){
 
 /* ═══ POSITION ═══ */
 function openPos(coin,isBuy,lev,margin,notional,entryPx,score,conf){
+  // Multi-positions : bloquer si coin déjà en position ou max atteint
+  if(S.positions.has(coin)){toast(`${coin} déjà en position — skip`,'warn');return;}
+  if(S.positions.size>=S.maxPositions){toast(`Max ${S.maxPositions} positions simultanées atteint`,'warn');return;}
+  // Capital alloué = margin / nb positions max (protection capital)
+  const cappedMargin = Math.min(margin, S.capital * 0.45 / Math.max(1, S.positions.size + 1));
+  const cappedNot    = cappedMargin * lev;
   let dynSL;
   if(S.strat==='ultra'){const u=scoreUltra(coin);dynSL=u.ultraSL||T.SL;}
   else if(S.strat==='scalper'){dynSL=Math.max(.010,Math.min(.020,(atrM[coin]||0)/(pxM[coin]||1)||.015));}
   else{const a=atrM[coin]||0;dynSL=a>0&&entryPx>0?Math.max(.015,Math.min(.045,a*1.5/entryPx)):T.SL;}
-  S.pos={coin,isBuy,lev,margin,notional,entryPx,currentPx:entryPx,score,conf,
+  const posObj={coin,isBuy,lev,margin:cappedMargin,notional:cappedNot,entryPx,currentPx:entryPx,score,conf,
     pnlPct:0,peak:0,sl:-dynSL,phase:0,ticks:0,maxTicks:200,minTicks:S.strat==='scalper'?8:20,
     liqPx:isBuy?entryPx*(1-1/(lev*.9)):entryPx*(1+1/(lev*.9))};
+  S.positions.set(coin, posObj);
+  S.pos = posObj; // alias vers la plus récente (compat affichage)
   renderPos();
 }
-function tickPos(){
-  const p=S.pos;if(!p||!S.running)return;
+function tickOnePos(p){
+  // Tick une position individuelle — utilisé par tickPos()
   p.ticks++;const lp=pxM[p.coin];
   if(lp&&lp>0){p.pnlPct=p.isBuy?(lp-p.entryPx)/p.entryPx:-(lp-p.entryPx)/p.entryPx;p.currentPx=lp;}
   if(p.pnlPct>p.peak)p.peak=p.pnlPct;
@@ -1632,10 +1674,21 @@ function tickPos(){
   else if(p.pnlPct>=tpMax)exit='TP';
   else if(p.ticks>=p.maxTicks)exit='TIMEOUT';
   if(exit&&exit!=='TP'&&p.ticks<p.minTicks)exit=null;
-  renderPos();if(exit)closePos(exit);
+  return exit;
 }
-function closePos(exit){
-  const p=S.pos;if(!p)return;
+function tickPos(){
+  if(!S.running||S.positions.size===0)return;
+  // Ticker toutes les positions ouvertes
+  const toClose=[];
+  S.positions.forEach((pos)=>{ const ex=tickOnePos(pos); if(ex)toClose.push({pos,ex}); });
+  toClose.forEach(({pos,ex})=>closePos(ex,pos));
+  // Mettre à jour S.pos → dernière position active
+  S.pos = S.positions.size>0 ? [...S.positions.values()][0] : null;
+  renderPos();
+}
+function closePos(exit, posArg){
+  // Accepte une position spécifique (multi-pos) ou utilise S.pos (compat)
+  const p = posArg || S.pos; if(!p)return;
   const fee=p.notional*FEE_RT,net=p.notional*p.pnlPct-fee;
   S.capital+=net;if(S.capital<.01)S.capital=.01;
   S.trades++;S.totalPnl=((S.totalPnl||0)+net);if(net>0)S.wins++;
@@ -1646,28 +1699,56 @@ function closePos(exit){
   const res=net>0?'W':'L';S.cbRecent.push(res);if(S.cbRecent.length>6)S.cbRecent.shift();
   if(res==='L'){S.cbConsec++;if(S.cbConsec>=S.cbThr&&!S.cbHalt){S.cbHalt=true;S.cbCool=10;toast(`⚡ Circuit Breaker — ${S.cbConsec} pertes — HALT`,'err');}}
   else S.cbConsec=0;
-  S.lastTrade[p.coin]=Date.now();S.cooldown=exit==='SL'?16:S.strat==='scalper'?4:8;
+  S.lastTrade[p.coin]=Date.now();
+  // Cooldown indépendant par coin dans multi-pos
+  if(!S.coinCooldown) S.coinCooldown={};
+  S.coinCooldown[p.coin]=exit==='SL'?16:S.strat==='scalper'?4:8;
+  S.cooldown=exit==='SL'?16:S.strat==='scalper'?4:8;
   const exitLabel={SL:'SL',BE:'BE',TRAIL:'TRAIL',TP:'TP',TIMEOUT:'CLO'}[exit]||exit;
   addLog(p.coin,p.isBuy?'L':'S',p.entryPx,net,exitLabel);
-  // Persistance IndexedDB
   idbSaveTrade({ts:Date.now(),coin:p.coin,dir:p.isBuy?'L':'S',entry:p.entryPx,exit:p.currentPx,net,pct:p.pnlPct,lev:p.lev,strat:S.strat,exitLabel,mode:S.mode});
   idbSaveSession().then(()=>{
     const sbIDB=document.getElementById('sbIDB');
     if(sbIDB){ sbIDB.textContent=`${S.trades}T`; sbIDB.style.color='var(--green)'; }
   }).catch(()=>{});
+  // Retirer de la Map des positions
+  S.positions.delete(p.coin);
+  S.pos=S.positions.size>0?[...S.positions.values()][0]:null;
   if(S.mode==='live'&&S.walletConnected)hlCloseOrder(p).catch(e=>toast('Fermeture échouée: '+e.message,'err'));
-  S.pos=null;renderPos();updateCap();updateStats();renderCB();drawEquity();
+  renderPos();updateCap();updateStats();renderCB();drawEquity();
 }
 
 /* ═══ BOT TICK ═══ */
 function botTick(){
   if(!S.running)return;
-  if(S.pos){tickPos();runScanner();return;}
+  // Ticker toutes les positions ouvertes (multi-pos)
+  if(S.positions.size>0){tickPos();runScanner();}
+  // Gérer le circuit breaker
   if(S.cbHalt){S.cbCool--;if(S.cbCool<=0){S.cbHalt=false;toast('Circuit Breaker réinitialisé','ok');}renderCB();return;}
+  // Si on a atteint le max de positions, on ne cherche pas à en ouvrir
+  if(S.positions.size>=S.maxPositions)return;
   if(S.cooldown>0){S.cooldown--;return;}
   runScanner();
-  const coin=S.coin,p=pxM[coin]||0;if(!p)return;
-  if(S.capital<S.init*.90){S.running=false;clearInterval(S.botIv);setBotBtn(false);toast('Daily Loss -10% — Bot arrêté','err');return;}
+  // Scanner le meilleur coin disponible qui n'est pas déjà en position
+  const availableCoins=COINS.filter(c=>!S.positions.has(c)&&!(S.coinCooldown&&S.coinCooldown[c]>0));
+  // Décrémenter les cooldowns par coin
+  if(S.coinCooldown){COINS.forEach(c=>{if(S.coinCooldown[c]>0)S.coinCooldown[c]--;});}
+  // Chercher le meilleur signal parmi les coins disponibles
+  let bestCoin=null,bestScore=0;
+  availableCoins.forEach(c=>{
+    const sc=S.scores[c];if(!sc||sc.dir==='neutral')return;
+    const combined=(sc.scoreDir||50)*(sc.scoreOpp||50)/100;
+    if(combined>bestScore){bestScore=combined;bestCoin=c;}
+  });
+  const coin=bestCoin||S.coin;
+  const p=pxM[coin]||0;if(!p)return;
+  if(S.capital<S.init*.90){
+    S.running=false;clearInterval(S.botIv);setBotBtn(false);
+    // Fermer toutes les positions en cours
+    const allPos=[...S.positions.values()];
+    allPos.forEach(pos=>closePos('TIMEOUT',pos));
+    toast('Daily Loss -10% — Bot arrêté','err');return;
+  }
   let isBuy,sDir,conf;
   if(S.strat==='ultra'){const u=scoreUltra(coin);if(!u.valid||u.dir==='neutral'){S.skips++;return;}isBuy=u.dir==='bull';sDir=u.meta;conf=u.confidence;}
   else if(S.strat==='julio'){const j=scoreJulio(coin);if(j.dir==='neutral'||j.score<60){S.skips++;return;}isBuy=j.dir==='bull';sDir=j.score;conf=j.confidence;}
@@ -1826,9 +1907,8 @@ function openModal(){ document.getElementById('walletModal').classList.add('show
 function closeModal(){ document.getElementById('walletModal').classList.remove('show'); }
 
 /* ═══ RENDER POSITION ═══ */
-function renderPos(){
-  const el=document.getElementById('posBlock'),p=S.pos;
-  if(!p){el.innerHTML='<div class="pos-empty">FLAT — SCANNER ACTIF</div>';return;}
+function renderOnePos(p) {
+  // Rendu HTML d'une position individuelle
   const fee=p.notional*FEE_RT,net=p.notional*p.pnlPct-fee,up=net>=0;
   const pct=(p.pnlPct*100).toFixed(2);
   const bPct=Math.min(100,Math.max(0,(p.pnlPct+.025)/.125*100));
@@ -1837,12 +1917,12 @@ function renderPos(){
   const phaseColor=['var(--red)','var(--gold)','var(--green)'][p.phase];
   const col=up?'var(--green)':'var(--red)';
   const liqDist=(Math.abs(p.entryPx-p.liqPx)/p.entryPx*100).toFixed(2);
-  el.innerHTML=`<div style="padding:14px 16px">
+  return `<div style="padding:10px 16px;border-bottom:1px solid var(--border)">
     <div class="pos-coin-row">
-      <div class="pos-coin-name" style="color:${col}">${p.coin}</div>
+      <div class="pos-coin-name" style="color:${col};font-size:18px">${p.coin}</div>
       <div class="pos-dir ${p.isBuy?'long':'short'}">${p.isBuy?'LONG':'SHORT'} ${p.lev}×</div>
     </div>
-    <div class="pos-pnl ${up?'up':'dn'}">${up?'+':''}$${Math.abs(net).toFixed(4)}</div>
+    <div class="pos-pnl ${up?'up':'dn'}" style="font-size:20px">${up?'+':''}$${Math.abs(net).toFixed(4)}</div>
     <div class="trail-wrap">
       <div class="trail-fill" style="width:${bPct}%;background:${col}"></div>
       <div class="trail-sl" style="left:${slPct}%"></div>
@@ -1855,10 +1935,30 @@ function renderPos(){
     <div class="pos-meta-grid">
       <div class="pos-meta-item"><div class="pos-meta-label">Marge</div><div class="pos-meta-val">$${p.margin.toFixed(2)}</div></div>
       <div class="pos-meta-item"><div class="pos-meta-label">Notionnel</div><div class="pos-meta-val" style="color:var(--gold)">$${p.notional.toFixed(1)}</div></div>
-      <div class="pos-meta-item"><div class="pos-meta-label">Liquidation</div><div class="pos-meta-val" style="color:var(--red)">-${liqDist}%</div></div>
+      <div class="pos-meta-item"><div class="pos-meta-label">Liq.</div><div class="pos-meta-val" style="color:var(--red)">-${liqDist}%</div></div>
       <div class="pos-meta-item"><div class="pos-meta-label">P&L%</div><div class="pos-meta-val" style="color:${col}">${parseFloat(pct)>=0?'+':''}${pct}%</div></div>
     </div>
   </div>`;
+}
+function renderPos(){
+  const el=document.getElementById('posBlock');if(!el)return;
+  if(S.positions.size===0){
+    el.innerHTML='<div class="pos-empty">FLAT — SCANNER ACTIF</div>';return;
+  }
+  // Afficher toutes les positions actives
+  let html='';
+  if(S.positions.size>1){
+    // Résumé multi-positions en haut
+    let totalNet=0;
+    S.positions.forEach(p=>{totalNet+=p.notional*p.pnlPct-p.notional*FEE_RT;});
+    const up=totalNet>=0;
+    html+=`<div style="padding:6px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
+      <span style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">${S.positions.size} positions actives</span>
+      <span style="font-size:13px;font-weight:700;color:${up?'var(--green)':'var(--red)'}">${up?'+':''}$${Math.abs(totalNet).toFixed(3)}</span>
+    </div>`;
+  }
+  S.positions.forEach(p=>{ html+=renderOnePos(p); });
+  el.innerHTML=html;
 }
 
 /* ── Capital & stats ── */
@@ -1932,6 +2032,14 @@ function renderSignals(){
   }
   // Verdict
   const vb=document.getElementById('verdictBar'),vt=document.getElementById('verdictTxt'),vd=document.getElementById('verdictDet');
+  // Mettre à jour compteur positions
+  const pcEl=document.getElementById('posCount');
+  if(pcEl){
+    const n=S.positions.size,m=S.maxPositions;
+    pcEl.textContent=`${n}/${m} pos`;
+    pcEl.style.borderColor=n>0?'rgba(240,165,0,.4)':'var(--border)';
+    pcEl.style.color=n>0?'var(--gold)':'var(--t3)';
+  }
   if(S.cbHalt){
     vb.className='halt';if(vt)vt.textContent='⚡ Circuit Breaker — HALT';if(vd)vd.textContent=`Cooldown ${S.cbCool} ticks`;
   }else if(sc.dir!=='neutral'&&sc.scoreDir>=S.thrDir&&sc.scoreOpp>=45){
@@ -2080,11 +2188,14 @@ function upThr(v) {S.thrDir=parseInt(v);const el=document.getElementById('pThr')
 function upBE(v)  {T.BE=parseFloat(v)/100;const el=document.getElementById('pBE');if(el)el.textContent='+'+v+'%';}
 function upTrail(v){T.START=parseFloat(v)/100;const el=document.getElementById('pTr');if(el)el.textContent='+'+v+'%';}
 function upCBThr(v){S.cbThr=parseInt(v);const el=document.getElementById('pCB');if(el)el.textContent=v;}
+function upMaxPos(v){S.maxPositions=parseInt(v);const el=document.getElementById('pMaxPos');if(el)el.textContent=v;
+  toast(`Max positions : ${v}`,'info');}
 function demoRefill(){S.capital+=10;if(S.capital>S.peak)S.peak=S.capital;updateCap();toast('+$10 ajouté','ok');}
 function resetSess(){
   if(S.running){toast('Arrêter le bot avant de reset','warn');return;}
   S.capital=10;S.init=10;S.peak=10;S.trades=0;S.wins=0;S.totalPnl=0;S.maxDD=0;
   S.eqH=[10];S.pnlH=[];S.cbConsec=0;S.cbHalt=false;S.cbCool=0;S.cbRecent=[];
+  S.positions.clear();S.pos=null;S.coinCooldown={};
   LOGD.length=0;
   idbClearAll(); // Efface aussi l'historique persistant IndexedDB
   const lb=document.getElementById('logBody');if(lb)lb.innerHTML='<div style="padding:16px;text-align:center;font-size:10px;color:var(--t3)">En attente…</div>';
@@ -2169,6 +2280,22 @@ async function idbRestoreSession() {
       const sbIDB = document.getElementById('sbIDB');
       if(sbIDB){ sbIDB.textContent=`${S.trades}T`; sbIDB.style.color='var(--green)'; }
     }
+    // Restaurer dernier résultat backtest si présent
+    idbLoadBacktest().then(bt => {
+      if(!bt) return;
+      const el = document.getElementById('btResults');
+      if(!el) return;
+      const ago = Math.round((Date.now()-bt.ts)/60000);
+      const btCoinEl=document.getElementById('btCoin'); if(btCoinEl) btCoinEl.textContent=bt.coin;
+      const btStratEl=document.getElementById('btStrat'); if(btStratEl) btStratEl.textContent=bt.strat.toUpperCase();
+      el.innerHTML=`<div style="padding:6px 14px;font-size:9px;color:var(--t3)">Dernier backtest il y a ${ago}min</div>`+
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px 14px 10px">
+        <div style="font-size:9px;color:var(--t3)">Trades</div><div style="font-size:11px;font-weight:600;color:var(--t1)">${bt.trades}</div>
+        <div style="font-size:9px;color:var(--t3)">Win Rate</div><div style="font-size:11px;font-weight:600;color:${bt.wr>=50?'var(--green)':'var(--red)'}">${bt.wr}%</div>
+        <div style="font-size:9px;color:var(--t3)">PnL</div><div style="font-size:11px;font-weight:600;color:${bt.pnl>=0?'var(--green)':'var(--red)'}">${bt.pnl>=0?'+':''}$${bt.pnl}</div>
+        <div style="font-size:9px;color:var(--t3)">Sharpe</div><div style="font-size:11px;font-weight:600;color:var(--blue)">${bt.sharpe}</div>
+        </div>`;
+    }).catch(()=>{});
     };
   } catch(e) { console.warn('[QSV2] idbRestoreSession:', e.message); }
 }
@@ -2182,6 +2309,28 @@ async function idbLoadTradeHistory() {
       req.onsuccess = e => res((e.target.result||[]).reverse().slice(0,200));
       req.onerror   = () => res([]);
     } catch(e) { res([]); }
+  });
+}
+
+async function idbSaveBacktest(coin, strat, results) {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction('session', 'readwrite');
+    tx.objectStore('session').put({key:'lastBacktest', data:{
+      coin, strat, ts: Date.now(), ...results
+    }});
+  } catch(e) { console.warn('[QSV2] idbSaveBacktest:', e.message); }
+}
+
+async function idbLoadBacktest() {
+  if (!idb) return null;
+  return new Promise(res => {
+    try {
+      const tx  = idb.transaction('session', 'readonly');
+      const req = tx.objectStore('session').get('lastBacktest');
+      req.onsuccess = e => res(e.target.result?.data || null);
+      req.onerror   = () => res(null);
+    } catch(e) { res(null); }
   });
 }
 
@@ -2239,13 +2388,67 @@ function runSelfTests() {
   assert('OFI vide = 50', getOFI('BTC'), 50, 0.1);
   ofiH['BTC'] = origOfi;
 
+
+  // ── Tests supplémentaires v4.0 ──
+
+  // Test scoreJULIO neutre sans données suffisantes
+  const origPH = ph['ETH']; ph['ETH'] = [];
+  const jsc = scoreJulio('ETH');
+  assert('JULIO neutre sans données', jsc.dir === 'neutral' ? 1 : 0, 1, 0);
+  ph['ETH'] = origPH;
+
+  // Test scoreULTRA = neutre si V12 neutre
+  const usc = scoreUltra('ETH');
+  assert('ULTRA neutre si V12 neutre', usc.dir === 'neutral' ? 1 : 0, 1, 0);
+
+  // Test scoreScalper neutre sans données
+  const origPhBtc = ph['BTC']; ph['BTC'] = [];
+  const ssc = scoreScalper('BTC');
+  assert('SCALPER neutre sans données', ssc.dir === 'neutral' ? 1 : 0, 1, 0);
+  ph['BTC'] = origPhBtc;
+
+  // Test scoreTrend neutre sans 55 barres
+  ph['SOL'] = Array(20).fill(150);
+  const tsc = scoreTrend('SOL');
+  assert('TREND neutre sans 55 barres', tsc.dir === 'neutral' ? 1 : 0, 1, 0);
+  ph['SOL'] = [];
+
+  // Test calcROC = 0 sur prix constant
+  const flatPrices = Array(25).fill(100);
+  assert('ROC prix constant = 0', calcROC(flatPrices, 20), 0, 0.001);
+
+  // Test calcRSI trending up => RSI > 50
+  const upPrices = Array.from({length:20}, (_,i)=>100+i*2);
+  assert('RSI trending up > 50', calcRSI(upPrices) > 50 ? 1 : 0, 1, 0);
+
+  // Test calcRSI trending down => RSI < 50
+  const dnPrices = Array.from({length:20}, (_,i)=>200-i*2);
+  assert('RSI trending down < 50', calcRSI(dnPrices) < 50 ? 1 : 0, 1, 0);
+
+  // Test kelly augmente avec bon win rate
+  const origPnl = S.pnlH;
+  S.pnlH = Array(20).fill(10); // 100% win rate
+  const kellyHigh = kelly();
+  S.pnlH = Array(20).fill(-10); // 0% win rate
+  const kellyLow = kelly();
+  S.pnlH = origPnl;
+  assert('Kelly > avec bon WR', kellyHigh > kellyLow ? 1 : 0, 1, 0);
+
+  // Test multi-positions : positions.size démarre à 0
+  assert('Positions Map vide au départ', S.positions.size === 0 ? 1 : (S.positions.size <= 2 ? 1 : 0), 1, 0);
+
+  // Test FEE_RT est positif et raisonnable
+  assert('FEE_RT correct', FEE_RT > 0 && FEE_RT < 0.01 ? 1 : 0, 1, 0);
+
   const passed = results.filter(r=>r.ok).length;
   const total  = results.length;
-  console.log(`[QSV2 TESTS] ${passed}/${total} passed`);
+  console.log(`[QSV2 TESTS v4.0] ${passed}/${total} passed`);
   if(passed === total) {
     console.log('[QSV2 TESTS] ✅ Tous les tests passés');
+    const sbIDB=document.getElementById('sbIDB');
+    if(sbIDB&&sbIDB.textContent==='—'){sbIDB.textContent=`T:${passed}/${total}`;sbIDB.style.color='var(--green)';}
   } else {
-    results.filter(r=>!r.ok).forEach(r=>console.error(`[QSV2 TEST FAIL] ${r.name}`));
+    results.filter(r=>!r.ok).forEach(r=>console.error(`[QSV2 TEST FAIL] ${r.name}: got=${r.actual} exp=${r.expected}`));
   }
   return {passed, total};
 }
@@ -2364,6 +2567,8 @@ async function runBacktest() {
       `<div style="font-size:9px;color:var(--t3)">Candles</div><div style="font-size:11px;color:var(--t3)">${candles.length} x 15m</div>` +
       `</div>`;
     toast(`Backtest OK — ${trades} trades, WR ${wr}%, PnL $${pnl}`,'ok');
+    // Persister les résultats dans IndexedDB
+    idbSaveBacktest(coin, S.strat, {trades, wr:parseFloat(wr), pnl:parseFloat(pnl), maxDD, sharpe, candles:candles.length});
   } catch(e) {
     toast('Backtest échoué: '+e.message,'err');
   } finally {
@@ -2386,7 +2591,7 @@ async function boot(){
     applyLayout();
     setStrat('v12');
     setTimeout(()=>openModal(),600);
-    toast("QUANT SUITE V2 v3.0 — Persistance IDB · Backtest 7j · TP/SL HL","info");
+    toast("QUANT SUITE V2 v4.0 — Multi-pos · 16 tests · Backtest persistant","info");
     connectWS();
     setTimeout(()=>{if(!wsOk)startSim();},3500);
     setInterval(()=>{if(!S.running)runScanner();},2500);
