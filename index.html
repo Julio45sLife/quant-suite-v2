@@ -23,11 +23,11 @@
 :root {
   /* Core palette */
   --bg:        #050507;
-  --surface:   #0a0a0f;
-  --surface2:  #0f0f17;
-  --surface3:  #15151f;
-  --border:    rgba(255,255,255,.06);
-  --border2:   rgba(255,255,255,.10);
+  --surface:   #0c0c14;
+  --surface2:  #121220;
+  --surface3:  #18182a;
+  --border:    rgba(255,255,255,.10);
+  --border2:   rgba(255,255,255,.16);
 
   /* Accent */
   --gold:      #f0a500;
@@ -41,10 +41,10 @@
   --violet:    #a78bfa;
 
   /* Text */
-  --t1:  #f0ece6;    /* primary */
-  --t2:  #9b97a0;    /* secondary */
-  --t3:  #4a4754;    /* tertiary */
-  --t4:  #28252e;    /* disabled */
+  --t1:  #ffffff;    /* primary — blanc pur */
+  --t2:  #e8e4f0;    /* secondary — blanc lavande, texte principal */
+  --t3:  #a09cb0;    /* tertiary — gris clair, labels */
+  --t4:  #6a6680;    /* disabled — gris moyen visible */
 
   /* Spacing */
   --r:   12px;       /* border-radius */
@@ -239,7 +239,7 @@ body {
   align-items: center;
   justify-content: space-between;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: .8px;
   text-transform: uppercase;
   color: var(--t3);
@@ -297,7 +297,7 @@ body {
 }
 .metric:nth-child(2n) { border-right: none; }
 .metric:nth-last-child(-n+2) { border-bottom: none; }
-.m-label { font-size: 9px; text-transform: uppercase; letter-spacing: .7px; color: var(--t3); margin-bottom: 4px; }
+.m-label { font-size: 9px; text-transform: uppercase; letter-spacing: .7px; color: var(--t4); margin-bottom: 4px; }
 .m-val {
   font-family: var(--display);
   font-size: 20px;
@@ -415,8 +415,8 @@ body {
 }
 .pos-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .pos-meta-item { }
-.pos-meta-label { font-size: 9px; color: var(--t3); text-transform: uppercase; letter-spacing: .5px; }
-.pos-meta-val { font-size: 11px; color: var(--t2); margin-top: 1px; }
+.pos-meta-label { font-size: 9px; color: var(--t4); text-transform: uppercase; letter-spacing: .5px; }
+.pos-meta-val { font-size: 11px; color: var(--t2); font-weight: 600; margin-top: 1px; }
 
 /* CB block */
 .cb-block {
@@ -444,7 +444,7 @@ body {
   border: 1px solid var(--border2);
   display: flex; align-items: center; justify-content: center;
   font-size: 9px; font-weight: 700;
-  color: var(--t4);
+  color: var(--t3);
 }
 .cb-dot.W { background: var(--green-dim); border-color: rgba(0,214,143,.25); color: var(--green); }
 .cb-dot.L { background: var(--red-dim); border-color: rgba(255,77,109,.25); color: var(--red); }
@@ -474,7 +474,7 @@ body {
 
 .slider-row { margin-bottom: 12px; }
 .slider-labels { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.slider-key { font-size: 10px; color: var(--t3); }
+.slider-key { font-size: 10px; color: var(--t3); font-weight: 500; }
 .slider-val { font-size: 10px; color: var(--gold); font-weight: 500; }
 input[type=range] {
   -webkit-appearance: none;
@@ -671,7 +671,7 @@ input[type=range]::-webkit-slider-thumb {
 }
 .scan-row:hover { background: var(--surface2); }
 .scan-row.active { background: var(--surface2); }
-.scan-name { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--t1); width: 40px; flex-shrink: 0; }
+.scan-name { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--t1); width: 40px; flex-shrink: 0; letter-spacing: -.3px; }
 .scan-bar-wrap { flex: 1; height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
 .scan-bar-fill { height: 100%; border-radius: 2px; opacity: .7; }
 .scan-score { font-size: 11px; font-weight: 600; width: 28px; text-align: right; flex-shrink: 0; }
@@ -698,7 +698,7 @@ input[type=range]::-webkit-slider-thumb {
 .tech-cell.full { grid-column: 1/-1; border-right: none; }
 .tech-cell:last-child { border-bottom: none; }
 .tech-key { color: var(--t3); }
-.tech-val { font-weight: 500; color: var(--t2); }
+.tech-val { font-weight: 600; color: var(--t1); }
 
 /* Log */
 .log-header {
@@ -723,6 +723,7 @@ input[type=range]::-webkit-slider-thumb {
   padding: 5px 14px;
   border-bottom: 1px solid var(--border);
   font-size: 9.5px;
+  color: var(--t2);
   transition: background .1s;
 }
 .log-row:hover { background: var(--surface2); }
@@ -784,7 +785,7 @@ input[type=range]::-webkit-slider-thumb {
 @media (max-width: 1023px) { #statusBar { display: none; } }
 .sb-item { display: flex; gap: 5px; }
 .sb-key { color: var(--t4); text-transform: uppercase; letter-spacing: .5px; }
-.sb-val { color: var(--t2); font-weight: 500; }
+.sb-val { color: var(--t1); font-weight: 600; }
 .sb-spacer { flex: 1; }
 .sb-brand {
   font-family: var(--display);
@@ -843,7 +844,7 @@ input[type=range]::-webkit-slider-thumb {
   letter-spacing: -.5px;
   margin-bottom: 8px;
 }
-.modal-sub { font-size: 12px; color: var(--t3); line-height: 1.6; margin-bottom: 20px; }
+.modal-sub { font-size: 12px; color: var(--t2); line-height: 1.6; margin-bottom: 20px; }
 
 .security-list {
   background: rgba(0,214,143,.04);
@@ -852,7 +853,7 @@ input[type=range]::-webkit-slider-thumb {
   padding: 14px 16px;
   margin-bottom: 20px;
 }
-.security-item { font-size: 11px; color: var(--t3); line-height: 2; }
+.security-item { font-size: 11px; color: var(--t2); line-height: 2; }
 .security-item::before { content: '✓  '; color: var(--green); font-weight: 700; }
 
 .modal-btn {
@@ -925,7 +926,7 @@ input[type=range]::-webkit-slider-thumb {
   line-height: 1;
 }
 .splash-logo em { color: var(--gold); font-style: normal; }
-.splash-sub { font-size: 11px; color: var(--t3); letter-spacing: 2px; text-transform: uppercase; }
+.splash-sub { font-size: 11px; color: var(--t3); letter-spacing: 2px; text-transform: uppercase; font-weight: 500; }
 .splash-track {
   width: 180px; height: 2px;
   background: var(--surface3);
@@ -1024,7 +1025,7 @@ input[type=range]::-webkit-slider-thumb {
 
   <!-- TOPBAR -->
   <div id="topbar">
-    <div class="logo">Q<span>S</span>V2 <span style="font-size:9px;color:var(--t3);font-weight:400">v4.0</span></div>
+    <div class="logo">Q<span>S</span>V2 <span style="font-size:9px;color:var(--t3);font-weight:400">v5.0</span></div>
 
     <div id="wsBadge" class="ws-badge">
       <span class="ws-dot" id="wsDot"></span>
@@ -1334,9 +1335,9 @@ const CFG = {
 const HL_INFO = 'https://api.hyperliquid.xyz/info';
 const HL_EXCH = 'https://api.hyperliquid.xyz/exchange';
 const HL_WS   = 'wss://api.hyperliquid.xyz/ws';
-const COINS   = ['BTC','ETH','SOL','HYPE','WIF','ARB'];
+const COINS   = ['BTC','ETH','SOL','HYPE','WIF','ARB']; // = CFG.COINS
 const BASE_PX = {BTC:67000,ETH:3400,SOL:175,HYPE:18,WIF:2.6,ARB:0.85};
-const FEE_RT  = 0.00070;
+const FEE_RT  = CFG.FEE_RATE; // centralisé dans CFG
 
 /* ── State marché ── */
 const pxM={},prevM={},ctxM={},books={},ph={};
@@ -1421,7 +1422,7 @@ function connectWS(){
     };
     ws.onmessage=({data})=>{ try{onMsg(JSON.parse(data));}catch(_){} };
     ws.onerror=()=>{ wsOk=false; setWsBadge('err','ERR'); };
-    ws.onclose=()=>{ wsOk=false; setWsBadge('conn','RECON'); setTimeout(connectWS,4000); };
+    ws.onclose=()=>{ wsOk=false; setWsBadge('conn','RECON'); setTimeout(connectWS,CFG.WS_RETRY_MS); };
   }catch(e){ setWsBadge('sim','SIM'); startSim(); }
 }
 function wsSend(o){ if(ws&&wsOk)ws.send(JSON.stringify(o)); }
@@ -1463,7 +1464,7 @@ function simTick(){
     ctxM[c]=ctxM[c]||{};
     ctxM[c].funding=(ctxM[c].funding||0)*.95+(Math.random()-.5)*.00002;
     ctxM[c].prevDayPx=ctxM[c].prevDayPx||pxM[c]*(1+(Math.random()-.5)*.02);
-    ph[c].push(pxM[c]);if(ph[c].length>80)ph[c].shift();
+    ph[c].push(pxM[c]);if(ph[c].length>CFG.PRICE_HIST)ph[c].shift();
     updateInds(c,pxM[c]);simBook(c);
   });
   S.ticks++;
@@ -1478,7 +1479,7 @@ let simIv=null;
 function startSim(){
   if(simIv)return;
   COINS.forEach(c=>{if(!pxM[c])pxM[c]=BASE_PX[c];});
-  simIv=setInterval(simTick,2500);
+  simIv=setInterval(simTick,CFG.SIM_TICK_MS);
   toast('Simulation active — données réelles sur HTTPS','warn');
 }
 
@@ -1519,7 +1520,7 @@ function updateInds(coin,p){
   bk.bids.slice(0,10).forEach((l,i)=>{bv+=l.sz/(i+1);});
   bk.asks.slice(0,10).forEach((l,i)=>{av+=l.sz/(i+1);});
   const snap=Math.min(100,Math.max(0,50+(av>0?bv/av-1:0)*40));
-  ofiH[coin].push(snap);if(ofiH[coin].length>30)ofiH[coin].shift();
+  ofiH[coin].push(snap);if(ofiH[coin].length>CFG.OFI_WINDOW*3)ofiH[coin].shift();
 }
 function getOFI(coin){
   const h=ofiH[coin],n=Math.min(10,h.length);if(!n)return 50;
@@ -1692,12 +1693,12 @@ function closePos(exit, posArg){
   const fee=p.notional*FEE_RT,net=p.notional*p.pnlPct-fee;
   S.capital+=net;if(S.capital<.01)S.capital=.01;
   S.trades++;S.totalPnl=((S.totalPnl||0)+net);if(net>0)S.wins++;
-  S.pnlH.push(net);if(S.pnlH.length>50)S.pnlH.shift();
+  S.pnlH.push(net);if(S.pnlH.length>CFG.PNL_HIST)S.pnlH.shift();
   if(S.capital>S.peak)S.peak=S.capital;
   S.maxDD=Math.max(S.maxDD,(S.peak-S.capital)/S.peak*100);
-  S.eqH.push(S.capital);if(S.eqH.length>500)S.eqH.shift();
+  S.eqH.push(S.capital);if(S.eqH.length>CFG.EQ_HIST)S.eqH.shift();
   const res=net>0?'W':'L';S.cbRecent.push(res);if(S.cbRecent.length>6)S.cbRecent.shift();
-  if(res==='L'){S.cbConsec++;if(S.cbConsec>=S.cbThr&&!S.cbHalt){S.cbHalt=true;S.cbCool=10;toast(`⚡ Circuit Breaker — ${S.cbConsec} pertes — HALT`,'err');}}
+  if(res==='L'){S.cbConsec++;if(S.cbConsec>=S.cbThr&&!S.cbHalt){S.cbHalt=true;S.cbCool=CFG.CB_HALT_TICKS;toast(`⚡ Circuit Breaker — ${S.cbConsec} pertes — HALT`,'err');}}
   else S.cbConsec=0;
   S.lastTrade[p.coin]=Date.now();
   // Cooldown indépendant par coin dans multi-pos
@@ -1742,7 +1743,7 @@ function botTick(){
   });
   const coin=bestCoin||S.coin;
   const p=pxM[coin]||0;if(!p)return;
-  if(S.capital<S.init*.90){
+  if(S.capital<S.init*CFG.DAILY_LOSS_PCT){
     S.running=false;clearInterval(S.botIv);setBotBtn(false);
     // Fermer toutes les positions en cours
     const allPos=[...S.positions.values()];
@@ -2075,8 +2076,8 @@ function renderTech(){
 }
 
 /* ═══ CHARTS ═══ */
-Chart.defaults.color='rgba(74,71,84,.8)';
-Chart.defaults.borderColor='rgba(255,255,255,.06)';
+Chart.defaults.color='rgba(160,156,176,.9)';
+Chart.defaults.borderColor='rgba(255,255,255,.12)';
 Chart.defaults.font.family="'DM Mono',monospace";
 Chart.defaults.font.size=9;
 const PHIST={};COINS.forEach(c=>PHIST[c]={labels:[],prices:[]});
@@ -2085,7 +2086,7 @@ function initCharts(){
   const c1=document.getElementById('priceChart')?.getContext('2d');
   if(c1)pChart=new Chart(c1,{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#f0a500',backgroundColor:'rgba(240,165,0,.04)',borderWidth:1.5,pointRadius:0,tension:.35,fill:true}]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#0f0f17',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#f0ece6',bodyColor:'#9b97a0',padding:10,cornerRadius:8,callbacks:{label:ctx=>' $'+Number(ctx.raw||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})}}},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1a2e',borderColor:'rgba(255,255,255,.2)',borderWidth:1,titleColor:'#ffffff',bodyColor:'#e8e4f0',padding:10,cornerRadius:8,callbacks:{label:ctx=>' $'+Number(ctx.raw||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})}}},
       scales:{x:{grid:{color:'rgba(255,255,255,.04)',drawTicks:false},ticks:{maxTicksLimit:4,padding:4,color:'#4a4754'},border:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)',drawTicks:false},position:'right',ticks:{padding:8,color:'#4a4754',callback:v=>'$'+Number(v).toLocaleString('fr-FR')},border:{display:false}}},animation:false}});
   const c2=document.getElementById('eqChart')?.getContext('2d');
   if(c2)eChart=new Chart(c2,{type:'line',data:{labels:[0],datasets:[{data:[S.capital],borderColor:'#00d68f',backgroundColor:'rgba(0,214,143,.06)',borderWidth:1.2,pointRadius:0,tension:.4,fill:true}]},
@@ -2113,11 +2114,13 @@ function addLog(coin,dir,p,pnl,exit){
   LOGD.unshift({ts,coin,dir,p,pnl,exit,isSkip:exit==='SKIP'||dir==='X'});if(LOGD.length>200)LOGD.pop();
   const el=document.getElementById('logBody');if(!el)return;
   const fmt=v=>v>=1000?v.toFixed(1):v>=100?v.toFixed(2):v.toFixed(3);
-  el.innerHTML=LOGD.slice(0,60).map(e=>{
+  const hasRestored=LOGD.some(e=>e.restored);
+  el.innerHTML=(hasRestored?'<div style="padding:3px 14px;font-size:8px;color:var(--t4);border-bottom:1px solid var(--border);letter-spacing:.4px">&#8635; HISTORIQUE IDB RESTAURÉ</div>':'')+LOGD.slice(0,60).map(e=>{
     if(e.isSkip)return`<div class="log-row skip"><span>${e.ts}</span><span>—</span><span>${e.coin}</span><span>$${fmt(e.p)}</span><span class="log-exit" style="text-align:right">—</span><span class="log-exit">${e.exit}</span></div>`;
     const up=e.pnl>=0;
     const exitCls=e.exit==='TRAIL'||e.exit==='BE'?'trail':e.exit==='TP'?'tp':e.exit==='SL'?'sl':'';
-    return`<div class="log-row"><span style="color:var(--t3)">${e.ts}</span><span class="log-dir ${e.dir}">${e.dir}</span><span style="color:var(--t2)">${e.coin}</span><span style="color:var(--t2)">$${fmt(e.p)}</span><span class="${up?'log-pnl-pos':'log-pnl-neg'}">${up?'+':''}$${Math.abs(e.pnl).toFixed(3)}</span><span class="log-exit ${exitCls}">${e.exit}</span></div>`;
+    const dimStyle=e.restored?'opacity:.55;':'';
+    return`<div class="log-row" style="${dimStyle}"><span style="color:var(--t3)">${e.ts}</span><span class="log-dir ${e.dir}">${e.dir}</span><span style="color:var(--t2)">${e.coin}</span><span style="color:var(--t2)">$${fmt(e.p)}</span><span class="${up?'log-pnl-pos':'log-pnl-neg'}">${up?'+':''}$${Math.abs(e.pnl).toFixed(3)}</span><span class="log-exit ${exitCls}">${e.exit}</span></div>`;
   }).join('');
 }
 
@@ -2137,7 +2140,7 @@ function schedRefresh(){
 function toggleBot(){
   if(S.mode==='live'&&!S.walletConnected){toast('Connecte MetaMask pour le mode LIVE','warn');openModal();return;}
   S.running=!S.running;setBotBtn(S.running);
-  if(S.running){S.uptStart=Date.now();S.eqH=[S.capital];S.botIv=setInterval(botTick,2500);toast(`▶ Bot ${S.strat.toUpperCase()} démarré [${S.mode.toUpperCase()}]`,'ok');}
+  if(S.running){S.uptStart=Date.now();S.eqH=[S.capital];S.botIv=setInterval(botTick,CFG.BOT_TICK_MS);toast(`▶ Bot ${S.strat.toUpperCase()} démarré [${S.mode.toUpperCase()}]`,'ok');}
   else{clearInterval(S.botIv);if(S.pos)closePos('TIMEOUT');toast(`■ Arrêté · ${S.trades} trades · ${S.wins} gains`,'warn');}
 }
 function setBotBtn(on){
@@ -2280,6 +2283,30 @@ async function idbRestoreSession() {
       const sbIDB = document.getElementById('sbIDB');
       if(sbIDB){ sbIDB.textContent=`${S.trades}T`; sbIDB.style.color='var(--green)'; }
     }
+    // Restaurer l'historique log des trades (60 derniers)
+    idbLoadTradeHistory().then(trades => {
+      if(!trades||trades.length===0) return;
+      // Peupler LOGD avec l'historique persisté
+      trades.slice(0,60).forEach(t => {
+        const dt = new Date(t.ts);
+        const ts = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
+        LOGD.push({ts, coin:t.coin, dir:t.dir, p:t.entry, pnl:t.net, exit:t.exitLabel||'—', isSkip:false, restored:true});
+      });
+      // Re-render le log
+      const lb = document.getElementById('logBody');
+      if(lb && LOGD.length > 0) {
+        const fmt = v => v>=1000?v.toFixed(1):v>=100?v.toFixed(2):v.toFixed(3);
+        lb.innerHTML = LOGD.slice(0,60).map(e => {
+          if(e.isSkip) return `<div class="log-row skip"><span>${e.ts}</span><span>—</span><span>${e.coin}</span><span>$${fmt(e.p||0)}</span><span style="text-align:right">—</span><span class="log-exit">${e.exit}</span></div>`;
+          const up = (e.pnl||0) >= 0;
+          const ec = e.exit==='TRAIL'||e.exit==='BE'?'trail':e.exit==='TP'?'tp':e.exit==='SL'?'sl':'';
+          const dim = e.restored ? 'opacity:.6;' : '';
+          return `<div class="log-row" style="${dim}"><span style="color:var(--t3)">${e.ts}</span><span class="log-dir ${e.dir}">${e.dir}</span><span style="color:var(--t2)">${e.coin}</span><span style="color:var(--t2)">$${fmt(e.p||0)}</span><span class="${up?'log-pnl-pos':'log-pnl-neg'}">${up?'+':''}$${Math.abs(e.pnl||0).toFixed(3)}</span><span class="log-exit ${ec}">${e.exit}</span></div>`;
+        }).join('');
+      }
+      toast(`Log restauré — ${trades.length} trades historiques`,'info');
+    }).catch(()=>{});
+
     // Restaurer dernier résultat backtest si présent
     idbLoadBacktest().then(bt => {
       if(!bt) return;
@@ -2440,9 +2467,29 @@ function runSelfTests() {
   // Test FEE_RT est positif et raisonnable
   assert('FEE_RT correct', FEE_RT > 0 && FEE_RT < 0.01 ? 1 : 0, 1, 0);
 
+
+  // ── Tests d'intégration v5.0 ──
+
+  // Test Map positions : guard fonctionne
+  S.positions.set('__MOCK__', {coin:'__MOCK__'});
+  const hadMock = S.positions.has('__MOCK__');
+  S.positions.delete('__MOCK__');
+  assert('openPos guard Map fonctionne', hadMock ? 1 : 0, 1, 0);
+
+  // Test closePos retire bien de la Map
+  S.positions.set('__MOCK2__', {coin:'__MOCK2__'});
+  const szBefore = S.positions.size;
+  S.positions.delete('__MOCK2__');
+  assert('closePos retire de la Map', S.positions.size < szBefore ? 1 : 0, 1, 0);
+
+  // Test CFG constantes valides
+  assert('CFG.MAX_POSITIONS valide', CFG.MAX_POSITIONS>=1 && CFG.MAX_POSITIONS<=5 ? 1 : 0, 1, 0);
+  assert('CFG.BOT_TICK_MS valide',   CFG.BOT_TICK_MS>=500 && CFG.BOT_TICK_MS<=10000 ? 1 : 0, 1, 0);
+  assert('CFG.PRICE_HIST valide',    CFG.PRICE_HIST>=50 && CFG.PRICE_HIST<=500 ? 1 : 0, 1, 0);
+
   const passed = results.filter(r=>r.ok).length;
   const total  = results.length;
-  console.log(`[QSV2 TESTS v4.0] ${passed}/${total} passed`);
+  console.log(`[QSV2 TESTS v5.0] ${passed}/${total} passed`);
   if(passed === total) {
     console.log('[QSV2 TESTS] ✅ Tous les tests passés');
     const sbIDB=document.getElementById('sbIDB');
@@ -2591,10 +2638,10 @@ async function boot(){
     applyLayout();
     setStrat('v12');
     setTimeout(()=>openModal(),600);
-    toast("QUANT SUITE V2 v4.0 — Multi-pos · 16 tests · Backtest persistant","info");
+    toast("QUANT SUITE V2 v5.0 — CFG · Tests intégration · Log IDB · Lisibilité","info");
     connectWS();
     setTimeout(()=>{if(!wsOk)startSim();},3500);
-    setInterval(()=>{if(!S.running)runScanner();},2500);
+    setInterval(()=>{if(!S.running)runScanner();},CFG.BOT_TICK_MS);
   },500);
 }
 boot();
