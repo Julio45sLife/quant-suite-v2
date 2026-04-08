@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050507">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<title>QUANT SUITE V2</title>
+<title>QUANT SUITE V5 · Julio45sLife</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500&family=Syne:wght@400;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -14,7 +14,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════
-   QUANT SUITE V2 — Premium Trading Interface
+   QUANT SUITE V5 — Premium Trading Interface
    Design : Market room luxury terminal
    Fonts  : DM Mono (data) + Syne (display)
    Mobile : bottom-tab navigation, native app feel
@@ -550,7 +550,34 @@ input[type=range]::-webkit-slider-thumb {
   letter-spacing: -.2px;
 }
 .chart-chg { font-size: 12px; font-weight: 500; }
-.chart-fr { font-size: 10px; color: var(--t3); margin-left: auto; }
+.chart-fr { font-size: 10px; color: var(--t3); }
+.chart-type-sel {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.ctype-btn {
+  padding: 0 10px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--t3);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.ctype-btn:hover { color: var(--t1); border-color: var(--border2); }
+.ctype-btn.active {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border-color: rgba(240,165,0,.4);
+  font-weight: 700;
+}
 
 /* Price chart */
 #chartWrap {
@@ -653,11 +680,39 @@ input[type=range]::-webkit-slider-thumb {
   background: var(--surface);
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* le scroll est dans panel-body */
 }
 @media (max-width: 1023px) {
   #panelRight { display: none; }
   #panelRight.mob-show { display: flex; }
 }
+/* Onglets panneau droit */
+.rpanel-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.rpanel-tab {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--t3);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .3px;
+}
+.rpanel-tab:last-child { border-right: none; }
+.rpanel-tab.active { color: var(--gold); background: var(--gold-dim); }
+.rpanel-tab:not(.active):hover { color: var(--t1); background: var(--surface2); }
+/* Sous-panneaux droit */
+.rp-section { display: none; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+.rp-section.show { display: flex; }
 
 /* Scanner */
 .scan-row {
@@ -745,7 +800,7 @@ input[type=range]::-webkit-slider-thumb {
   background: var(--surface);
   border-top: 1px solid var(--border);
   display: none;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   position: relative;
   z-index: 100;
 }
@@ -991,7 +1046,7 @@ input[type=range]::-webkit-slider-thumb {
   SPLASH
 ════════════════════════════════ -->
 <div id="splash">
-  <div class="splash-logo">QUANT <em>SUITE</em> V2</div>
+  <div class="splash-logo">QUANT <em>SUITE</em> V5</div>
   <div class="splash-sub">by Julio45sLife · Hyperliquid</div>
   <div class="splash-track"><div class="splash-progress" id="splBar"></div></div>
   <div class="splash-msg" id="splMsg">Initialisation…</div>
@@ -1025,7 +1080,7 @@ input[type=range]::-webkit-slider-thumb {
 
   <!-- TOPBAR -->
   <div id="topbar">
-    <div class="logo">Q<span>S</span>V2 <span style="font-size:9px;color:var(--t3);font-weight:400">v5.0</span></div>
+    <div class="logo">Q<span>S</span>V5</div>
 
     <div id="wsBadge" class="ws-badge">
       <span class="ws-dot" id="wsDot"></span>
@@ -1165,11 +1220,25 @@ input[type=range]::-webkit-slider-thumb {
         <span class="chart-coin" id="ctCoin">BTC-PERP</span>
         <span class="chart-price" id="ctPx">—</span>
         <span class="chart-chg" id="ctChg"></span>
+        <!-- Sélecteur de graphique -->
+        <div class="chart-type-sel">
+          <button class="ctype-btn active" id="ct-price"   onclick="setChartType('price')">Prix</button>
+          <button class="ctype-btn"        id="ct-equity"  onclick="setChartType('equity')">Equity</button>
+          <button class="ctype-btn"        id="ct-ofi"     onclick="setChartType('ofi')">OFI</button>
+          <button class="ctype-btn"        id="ct-rsi"     onclick="setChartType('rsi')">RSI</button>
+          <button class="ctype-btn"        id="ct-ema"     onclick="setChartType('ema')">EMA</button>
+        </div>
         <span class="chart-fr" id="ctFR">FR: —</span>
       </div>
 
-      <!-- Chart -->
-      <div id="chartWrap"><canvas id="priceChart"></canvas></div>
+      <!-- Chart (multi-type) -->
+      <div id="chartWrap">
+        <canvas id="priceChart"  style="width:100%;height:100%;display:block"></canvas>
+        <canvas id="ofiChart"    style="width:100%;height:100%;display:none"></canvas>
+        <canvas id="rsiChart"    style="width:100%;height:100%;display:none"></canvas>
+        <canvas id="emaChart"    style="width:100%;height:100%;display:none"></canvas>
+        <canvas id="eqChartMain" style="width:100%;height:100%;display:none"></canvas>
+      </div>
 
       <!-- Signals -->
       <div class="signal-grid">
@@ -1225,10 +1294,17 @@ input[type=range]::-webkit-slider-thumb {
 
     <!-- ── RIGHT PANEL ── -->
     <div class="panel" id="panelRight">
-      <div class="ph"><span>Scanner · Tech · Log</span></div>
-      <div class="panel-body" style="display:flex;flex-direction:column">
 
-        <div id="scanList" style="flex-shrink:0"></div>
+      <!-- Onglets Scanner / Log & Backtest -->
+      <div class="rpanel-tabs">
+        <button class="rpanel-tab active" id="rpt-scan" onclick="setRightTab('scan')">📡 Scanner</button>
+        <button class="rpanel-tab"        id="rpt-log"  onclick="setRightTab('log')">📋 Logs & BT</button>
+      </div>
+
+      <!-- ── SECTION SCANNER & TECH ── -->
+      <div class="rp-section show" id="rps-scan">
+
+        <div id="scanList"></div>
 
         <div class="tech-grid" style="flex-shrink:0">
           <div class="tech-cell"><span class="tech-key">EMA9</span><span class="tech-val" id="tE9">—</span></div>
@@ -1241,23 +1317,37 @@ input[type=range]::-webkit-slider-thumb {
           <div class="tech-cell full" style="border-bottom:none"><span class="tech-key">Kelly</span><span class="tech-val" id="tKelly">—</span></div>
         </div>
 
-        <!-- Backtest UI (P2-B) -->
-        <div style="padding:8px 14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--surface)">
-          <button id="btBtn" onclick="runBacktest()"
-            style="height:32px;padding:0 14px;border-radius:8px;border:1px solid rgba(91,141,239,.4);background:rgba(91,141,239,.08);color:var(--blue);font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap">
-            ▶ Backtest 7j
-          </button>
-          <span style="font-size:9px;color:var(--t3)">→ <span id="btCoin" style="color:var(--gold)">BTC</span> · <span id="btStrat" style="color:var(--t2)">V12</span></span>
+      </div><!-- /rps-scan -->
+
+      <!-- ── SECTION LOG & BACKTEST ── -->
+      <div class="rp-section" id="rps-log">
+
+        <!-- Backtest -->
+        <div style="flex-shrink:0;background:var(--surface2);border-bottom:1px solid var(--border)">
+          <div style="padding:10px 14px 8px;display:flex;align-items:center;gap:8px">
+            <button id="btBtn" onclick="runBacktest()"
+              style="height:32px;padding:0 14px;border-radius:8px;border:1px solid rgba(91,141,239,.4);background:rgba(91,141,239,.08);color:var(--blue);font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap">
+              ▶ Backtest 7j
+            </button>
+            <span style="font-size:9px;color:var(--t3)">
+              <span id="btCoin" style="color:var(--gold)">BTC</span>
+              · <span id="btStrat" style="color:var(--t2)">V12</span>
+            </span>
+          </div>
+          <div id="btResults" style="padding:0 14px 6px"></div>
         </div>
-        <div id="btResults" style="padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0"></div>
-        <div class="log-header">
-          <span>Heure</span><span>D</span><span>Coin</span><span>Prix</span><span style="text-align:right">P&L</span><span style="text-align:right">Exit</span>
+
+        <!-- Log trades -->
+        <div class="log-header" style="flex-shrink:0">
+          <span>Heure</span><span>D</span><span>Coin</span><span>Prix</span>
+          <span style="text-align:right">P&L</span><span style="text-align:right">Exit</span>
         </div>
-        <div class="log-body" id="logBody">
+        <div class="log-body" id="logBody" style="flex:1;overflow-y:auto">
           <div style="padding:16px;text-align:center;font-size:10px;color:var(--t3)">En attente…</div>
         </div>
 
-      </div>
+      </div><!-- /rps-log -->
+
     </div><!-- /panelRight -->
 
   </div><!-- /main -->
@@ -1280,6 +1370,10 @@ input[type=range]::-webkit-slider-thumb {
       <span class="nav-tab-icon">🔍</span>
       <span class="nav-tab-label">Scanner</span>
     </button>
+    <button class="nav-tab" id="nt-log" onclick="mobileTab('log')">
+      <span class="nav-tab-icon">📋</span>
+      <span class="nav-tab-label">Logs</span>
+    </button>
   </div>
 
   <!-- STATUS BAR — desktop -->
@@ -1295,7 +1389,7 @@ input[type=range]::-webkit-slider-thumb {
       <span id="sbIDB" style="color:var(--t4);font-size:9px;font-weight:500">—</span>
     </div>
     <div class="sb-spacer"></div>
-    <div class="sb-brand">JULIO45SLIFE · QUANT SUITE V2 v3.0</div>
+    <div class="sb-brand">JULIO45SLIFE · QUANT SUITE V5</div>
   </div>
 
 </div><!-- /app -->
@@ -1304,12 +1398,12 @@ input[type=range]::-webkit-slider-thumb {
 <script>
 'use strict';
 /* ═══════════════════════════════════════════════════════
-   QUANT SUITE V2 — Moteur complet
+   QUANT SUITE V5 — Moteur complet
    Logique identique, UI premium refaite de zéro
    ═══════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════
-   QUANT SUITE V2 v4.0 — Configuration centralisée
+   QUANT SUITE V5 — Configuration centralisée
    Toutes les constantes modifiables sont regroupées ici
    ═══════════════════════════════════════════════════════════════ */
 const CFG = {
@@ -1382,14 +1476,21 @@ function mobileTab(tab) {
   const pr = document.getElementById('panelRight');
   // Reset all
   [pl,pc,pr].forEach(el=>{ if(el) el.style.display='none'; });
-  if(tab==='ctrl')   { pl.style.display='flex'; pl.style.flexDirection='column'; }
-  if(tab==='chart')  { pc.style.display='flex'; pc.style.flexDirection='column'; }
-  if(tab==='scan')   { pr.style.display='flex'; pr.style.flexDirection='column'; }
+  if(tab==='ctrl')  { pl.style.display='flex'; pl.style.flexDirection='column'; }
+  if(tab==='chart') { pc.style.display='flex'; pc.style.flexDirection='column'; }
+  if(tab==='scan')  {
+    pr.style.display='flex'; pr.style.flexDirection='column';
+    setRightTab('scan');
+  }
+  if(tab==='log')   {
+    pr.style.display='flex'; pr.style.flexDirection='column';
+    setRightTab('log');
+  }
   // Update tab states
-  ['nt-chart','nt-ctrl','nt-scan'].forEach(id=>{
+  ['nt-chart','nt-ctrl','nt-scan','nt-log'].forEach(id=>{
     const b=document.getElementById(id);
     if(!b)return;
-    const map={'nt-chart':'chart','nt-ctrl':'ctrl','nt-scan':'scan'};
+    const map={'nt-chart':'chart','nt-ctrl':'ctrl','nt-scan':'scan','nt-log':'log'};
     b.classList.toggle('active', map[id]===tab);
   });
 }
@@ -2132,6 +2233,7 @@ function schedRefresh(){
     rafId=null;
     updateCap();updateStats();renderCB();
     updatePChart();renderSignals();renderTech();drawEquity();
+    updateExtraCharts();
     if(S.pos)renderPos();
   });
 }
@@ -2177,6 +2279,12 @@ function setCoin(c,silent=false){
   if(S.pos&&!silent){toast('Position ouverte — attendre fermeture','warn');return;}
   S.coin=c;PHIST[c]={labels:[],prices:[]};
   if(pChart){pChart.data.labels=[];pChart.data.datasets[0].data=[];pChart.update('none');}
+  ofiHistory.labels=[];ofiHistory.values=[];
+  rsiHistory.labels=[];rsiHistory.values=[];
+  emaHistory.labels=[];emaHistory.e9=[];emaHistory.e21=[];emaHistory.e50=[];
+  if(ofiChart){ofiChart.data.labels=[];ofiChart.data.datasets[0].data=[];ofiChart.update('none');}
+  if(rsiChart){rsiChart.data.labels=[];rsiChart.data.datasets[0].data=[];rsiChart.update('none');}
+  if(emaChartInst){emaChartInst.data.labels=[];emaChartInst.data.datasets.forEach(d=>d.data=[]);emaChartInst.update('none');}
   document.querySelectorAll('.coin-btn').forEach(b=>b.classList.toggle('active',b.textContent===c));
   if(ws&&wsOk)wsSend({method:'subscribe',subscription:{type:'l2Book',coin:c}});
   if(!silent)toast(`${c}-PERP sélectionné`,'info');
@@ -2225,7 +2333,7 @@ function toast(msg,type='ok'){
    Sauvegarde automatique : historique trades, stats, capital
    entre sessions. Restaure au boot suivant. */
 
-const DB_NAME = 'QuantSuiteV2';
+const DB_NAME = 'QuantSuiteV5';
 const DB_VER  = 1;
 let idb = null;
 
@@ -2623,6 +2731,166 @@ async function runBacktest() {
   }
 }
 
+
+/* ═══ SÉLECTEUR DE GRAPHIQUE ═══════════════════════════════════
+   Types : price (défaut) · equity · ofi · rsi · ema
+   Chaque type a son propre Chart.js instance.
+   ═══════════════════════════════════════════════════════════════ */
+
+let currentChartType = 'price';
+let ofiChart = null, rsiChart = null, emaChartInst = null, eqChartMain = null;
+
+// Données historiques par type
+const ofiHistory  = {labels:[], values:[]};
+const rsiHistory  = {labels:[], values:[]};
+const emaHistory  = {labels:[], e9:[], e21:[], e50:[]};
+
+function setChartType(type) {
+  currentChartType = type;
+  // Mettre à jour les boutons
+  ['price','equity','ofi','rsi','ema'].forEach(t => {
+    const b = document.getElementById('ct-'+t);
+    if(b) b.classList.toggle('active', t===type);
+  });
+  // Afficher/masquer les canvas
+  const canvasMap = {
+    price:  'priceChart',
+    equity: 'eqChartMain',
+    ofi:    'ofiChart',
+    rsi:    'rsiChart',
+    ema:    'emaChart',
+  };
+  Object.entries(canvasMap).forEach(([t,id]) => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = t===type ? 'block' : 'none';
+  });
+  // Forcer un update du chart actif
+  if(type==='ofi' && ofiChart) ofiChart.update('none');
+  if(type==='rsi' && rsiChart) rsiChart.update('none');
+  if(type==='ema' && emaChartInst) emaChartInst.update('none');
+  if(type==='equity' && eqChartMain) eqChartMain.update('none');
+}
+
+function initExtraCharts() {
+  // OFI chart
+  const c2 = document.getElementById('ofiChart')?.getContext('2d');
+  if(c2) ofiChart = new Chart(c2, {type:'bar', data:{labels:[], datasets:[{
+      data:[], backgroundColor: ctx => {
+        const v = ctx.raw;
+        return v > 63 ? 'rgba(0,214,143,.6)' : v < 37 ? 'rgba(255,77,109,.6)' : 'rgba(240,165,0,.4)';
+      }, borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' OFI: '+ctx.raw.toFixed(1)}}},
+      scales:{x:{display:false},
+        y:{min:0,max:100,position:'right',
+          ticks:{color:'rgba(160,156,176,.7)',callback:v=>v===63?'▶63':v===37?'◀37':v},
+          grid:{color:'rgba(255,255,255,.06)'},border:{display:false}}},
+      animation:false}});
+
+  // RSI chart
+  const c3 = document.getElementById('rsiChart')?.getContext('2d');
+  if(c3) rsiChart = new Chart(c3, {type:'line', data:{labels:[], datasets:[{
+      data:[], borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,.06)',
+      borderWidth:1.5, pointRadius:0, tension:.3, fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' RSI: '+ctx.raw.toFixed(1)}}},
+      scales:{x:{display:false},
+        y:{min:0,max:100,position:'right',
+          ticks:{color:'rgba(160,156,176,.7)'},
+          grid:{color:'rgba(255,255,255,.06)'},border:{display:false}}},
+      animation:false}});
+
+  // EMA chart
+  const c4 = document.getElementById('emaChart')?.getContext('2d');
+  if(c4) emaChartInst = new Chart(c4, {type:'line', data:{labels:[], datasets:[
+      {label:'EMA9',  data:[], borderColor:'#f0a500', borderWidth:1.5, pointRadius:0, tension:.3},
+      {label:'EMA21', data:[], borderColor:'#00d68f', borderWidth:1,   pointRadius:0, tension:.3},
+      {label:'EMA50', data:[], borderColor:'#5b8def', borderWidth:1,   pointRadius:0, tension:.3},
+      {label:'Prix',  data:[], borderColor:'rgba(240,236,230,.5)', borderWidth:1, pointRadius:0, tension:.3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'rgba(160,156,176,.8)',boxWidth:12,font:{size:9}}}},
+      scales:{x:{display:false},
+        y:{position:'right',ticks:{color:'rgba(160,156,176,.7)',callback:v=>'$'+Number(v).toLocaleString('fr-FR')},
+           grid:{color:'rgba(255,255,255,.06)'},border:{display:false}}},
+      animation:false}});
+
+  // Equity main (dans chartWrap, remplace la strip equity)
+  const c5 = document.getElementById('eqChartMain')?.getContext('2d');
+  if(c5) eqChartMain = new Chart(c5, {type:'line', data:{labels:[0], datasets:[{
+      data:[10], label:'Equity', borderColor:'#00d68f',
+      backgroundColor:'rgba(0,214,143,.08)', borderWidth:2,
+      pointRadius:0, tension:.4, fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' $'+Number(ctx.raw).toFixed(4)}}},
+      scales:{x:{display:false},
+        y:{position:'right',ticks:{color:'rgba(160,156,176,.7)',callback:v=>'$'+v.toFixed(2)},
+           grid:{color:'rgba(255,255,255,.06)'},border:{display:false}}},
+      animation:false}});
+}
+
+function updateExtraCharts() {
+  const c = S.coin;
+  const px = pxM[c]||0;
+  const t  = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(!px) return;
+
+  // OFI history
+  ofiHistory.labels.push(t); ofiHistory.values.push(getOFI(c));
+  if(ofiHistory.labels.length>80){ofiHistory.labels.shift();ofiHistory.values.shift();}
+  if(ofiChart){ofiChart.data.labels=[...ofiHistory.labels];ofiChart.data.datasets[0].data=[...ofiHistory.values];ofiChart.update('none');}
+
+  // RSI history
+  rsiHistory.labels.push(t); rsiHistory.values.push(rsiM[c]||50);
+  if(rsiHistory.labels.length>80){rsiHistory.labels.shift();rsiHistory.values.shift();}
+  if(rsiChart){
+    rsiChart.data.labels=[...rsiHistory.labels];rsiChart.data.datasets[0].data=[...rsiHistory.values];
+    // Lignes de surachat/survente
+    rsiChart.options.plugins.annotation = undefined; // simple
+    rsiChart.update('none');
+  }
+
+  // EMA history
+  emaHistory.labels.push(t);
+  emaHistory.e9.push(e9m[c]||px); emaHistory.e21.push(e21m[c]||px);
+  emaHistory.e50.push(e50m[c]||px); emaHistory.prices = PHIST[c]?.prices||[];
+  if(emaHistory.labels.length>80){
+    emaHistory.labels.shift();emaHistory.e9.shift();emaHistory.e21.shift();emaHistory.e50.shift();
+  }
+  if(emaChartInst){
+    emaChartInst.data.labels=[...emaHistory.labels];
+    emaChartInst.data.datasets[0].data=[...emaHistory.e9];
+    emaChartInst.data.datasets[1].data=[...emaHistory.e21];
+    emaChartInst.data.datasets[2].data=[...emaHistory.e50];
+    emaChartInst.data.datasets[3].data=PHIST[c]?.prices?.slice(-emaHistory.labels.length)||[];
+    emaChartInst.update('none');
+  }
+
+  // Equity main
+  if(eqChartMain){
+    eqChartMain.data.datasets[0].data=[...S.eqH];
+    eqChartMain.data.labels=S.eqH.map((_,i)=>i);
+    eqChartMain.data.datasets[0].borderColor=S.capital>=S.init?'#00d68f':'#ff4d6d';
+    eqChartMain.update('none');
+  }
+}
+
+
+/* ═══ ONGLETS PANNEAU DROIT ════════════════════════════════════ */
+function setRightTab(tab) {
+  ['scan','log'].forEach(t => {
+    const btn = document.getElementById('rpt-'+t);
+    const sec = document.getElementById('rps-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(sec) { sec.classList.toggle('show', t===tab); sec.style.display = t===tab ? 'flex' : 'none'; }
+  });
+  // Sur mobile, aussi switcher l'onglet "Scanner" vers le log
+  if(tab==='log') {
+    const logBody = document.getElementById('logBody');
+    if(logBody) logBody.scrollTop = 0;
+  }
+}
+
 /* ═══ BOOT ═══ */
 const BOOT=['V12 · JULIO · ULTRA…','SCALPER · TREND…','MetaMask EIP-712…','WebSocket Hyperliquid…','Kelly adaptatif · CB…','Interface premium…','Prêt.'];
 async function boot(){
@@ -2634,11 +2902,11 @@ async function boot(){
   }
   const spl=document.getElementById('splash');if(spl)spl.classList.add('out');
   setTimeout(()=>{
-    initCharts();renderCB();renderScanner();
+    initCharts();initExtraCharts();renderCB();renderScanner();
     applyLayout();
     setStrat('v12');
     setTimeout(()=>openModal(),600);
-    toast("QUANT SUITE V2 v5.0 — CFG · Tests intégration · Log IDB · Lisibilité","info");
+    toast("QUANT SUITE V5 — Multi-pos · Backtest · TP/SL HL · IDB","info");
     connectWS();
     setTimeout(()=>{if(!wsOk)startSim();},3500);
     setInterval(()=>{if(!S.running)runScanner();},CFG.BOT_TICK_MS);
