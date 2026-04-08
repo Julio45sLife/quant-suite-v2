@@ -800,7 +800,7 @@ input[type=range]::-webkit-slider-thumb {
   background: var(--surface);
   border-top: 1px solid var(--border);
   display: none;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   position: relative;
   z-index: 100;
 }
@@ -1038,6 +1038,45 @@ input[type=range]::-webkit-slider-thumb {
 .text-nu { color: var(--gold); }
 .text-bl { color: var(--blue); }
 .text-vi { color: var(--violet); }
+
+/* Log stratégie temps réel */
+.slog-row {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 9px;
+  font-family: var(--mono);
+  line-height: 1.6;
+  transition: background .1s;
+}
+.slog-row:hover { background: var(--surface2); }
+.slog-row.signal-bull { border-left: 3px solid var(--green); }
+.slog-row.signal-bear { border-left: 3px solid var(--red); }
+.slog-row.signal-skip { border-left: 3px solid var(--t4); opacity:.6; }
+.slog-row.signal-halt { border-left: 3px solid var(--gold); }
+.slog-ts   { color: var(--t3); margin-right: 6px; }
+.slog-coin { font-weight: 700; color: var(--t1); margin-right: 4px; }
+.slog-dir  { font-weight: 700; margin-right: 6px; }
+.slog-dir.bull { color: var(--green); }
+.slog-dir.bear { color: var(--red); }
+.slog-dir.skip { color: var(--t3); }
+.slog-reason { color: var(--t2); }
+.slog-conds { color: var(--t3); font-size: 8.5px; }
+.slog-score { font-weight: 600; }
+.slog-clear-btn {
+  width: 100%;
+  height: 32px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--t3);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.slog-clear-btn:hover { color: var(--red); }
+
 </style>
 </head>
 <body>
@@ -1072,6 +1111,31 @@ input[type=range]::-webkit-slider-thumb {
     <button class="modal-btn demo" onclick="goDemo()">Mode Démo — Prix réels, ordres simulés</button>
   </div>
 </div>
+
+
+  <!-- ═══ MODAL SÉLECTEUR DE JETONS ═══ -->
+  <div id="coinModal" style="display:none;position:fixed;inset:0;background:rgba(5,5,7,.90);z-index:300;backdrop-filter:blur(10px);align-items:flex-end;justify-content:center;padding:0">
+    <div style="width:100%;max-width:500px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px 20px 0 0;padding:24px 20px calc(24px + var(--sab));max-height:90dvh;overflow-y:auto">
+      <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 20px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:var(--display);font-size:18px;font-weight:800;color:var(--t1)">Sélection des jetons</div>
+        <button onclick="closeCoinSelector()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);background:var(--surface3);color:var(--t2);cursor:pointer;font-size:16px">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:14px">Sélectionne les jetons que le bot surveille. Minimum 1, maximum 8.</div>
+
+      <!-- Filtres catégorie -->
+      <div id="catFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+      <!-- Grille de jetons -->
+      <div id="coinCatalogGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px"></div>
+
+      <!-- Bouton confirmer -->
+      <button onclick="confirmCoinSelection()"
+        style="width:100%;height:48px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--gold),#ff9500);color:#000;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px">
+        Confirmer la sélection
+      </button>
+    </div>
+  </div>
 
 <!-- ════════════════════════════════
   APP SHELL
@@ -1145,13 +1209,17 @@ input[type=range]::-webkit-slider-thumb {
         </div>
 
         <!-- Coin grid -->
-        <div class="coin-grid" id="coinGrid">
-          <button class="coin-btn active" onclick="setCoin('BTC')">BTC</button>
-          <button class="coin-btn" onclick="setCoin('ETH')">ETH</button>
-          <button class="coin-btn" onclick="setCoin('SOL')">SOL</button>
-          <button class="coin-btn" onclick="setCoin('HYPE')">HYPE</button>
-          <button class="coin-btn" onclick="setCoin('WIF')">WIF</button>
-          <button class="coin-btn" onclick="setCoin('ARB')">ARB</button>
+        <!-- Jetons actifs (sélection rapide) -->
+        <div class="coin-grid" id="coinGrid" style="display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--border)">
+        </div>
+        <!-- Bouton pour ouvrir le sélecteur complet -->
+        <div style="flex-shrink:0;border-bottom:1px solid var(--border)">
+          <button onclick="openCoinSelector()"
+            style="width:100%;height:36px;border:none;background:transparent;color:var(--t3);font-family:var(--mono);font-size:10px;cursor:pointer;transition:all .15s;letter-spacing:.3px;display:flex;align-items:center;justify-content:center;gap:6px;"
+            onmouseover="this.style.color='var(--t1)';this.style.background='var(--surface2)'"
+            onmouseout="this.style.color='var(--t3)';this.style.background='transparent'">
+            <span>⚙</span><span id="activeCoinCount">6 jetons actifs</span><span style="margin-left:auto;padding-right:4px">›</span>
+          </button>
         </div>
 
         <!-- Position -->
@@ -1171,7 +1239,8 @@ input[type=range]::-webkit-slider-thumb {
         <!-- Params -->
         <div class="param-section">
           <div class="param-title">Configuration</div>
-          <div class="lev-grid">
+          <div class="lev-grid" id="levRow">
+            <!-- Rempli dynamiquement par updateLevButtons() selon le jeton actif -->
             <button class="lev-btn" onclick="setLev(1)">1×</button>
             <button class="lev-btn" onclick="setLev(5)">5×</button>
             <button class="lev-btn" onclick="setLev(10)">10×</button>
@@ -1206,7 +1275,7 @@ input[type=range]::-webkit-slider-thumb {
 
         <!-- Actions -->
         <div class="action-row">
-          <button class="action-btn" onclick="demoRefill()">+ $10</button>
+          <button class="action-btn" id="refillBtn" onclick="demoRefill()">+ $10</button>
           <button class="action-btn" onclick="resetSess()">↺ Reset</button>
         </div>
 
@@ -1297,8 +1366,9 @@ input[type=range]::-webkit-slider-thumb {
 
       <!-- Onglets Scanner / Log & Backtest -->
       <div class="rpanel-tabs">
-        <button class="rpanel-tab active" id="rpt-scan" onclick="setRightTab('scan')">📡 Scanner</button>
-        <button class="rpanel-tab"        id="rpt-log"  onclick="setRightTab('log')">📋 Logs & BT</button>
+        <button class="rpanel-tab active" id="rpt-scan"  onclick="setRightTab('scan')">📡 Scanner</button>
+        <button class="rpanel-tab"        id="rpt-log"   onclick="setRightTab('log')">📋 Logs & BT</button>
+        <button class="rpanel-tab"        id="rpt-strat" onclick="setRightTab('strat')">🧠 Strat</button>
       </div>
 
       <!-- ── SECTION SCANNER & TECH ── -->
@@ -1348,6 +1418,16 @@ input[type=range]::-webkit-slider-thumb {
 
       </div><!-- /rps-log -->
 
+      <!-- ── SECTION LOG STRATÉGIE TEMPS RÉEL ── -->
+      <div class="rp-section" id="rps-strat">
+        <button class="slog-clear-btn" onclick="clearStratLog()">↺ Effacer le log stratégie</button>
+        <div id="stratLogBody" style="flex:1;overflow-y:auto">
+          <div style="padding:20px;text-align:center;font-size:10px;color:var(--t3)">
+            Le log s'alimente en temps réel lors du scan des marchés…
+          </div>
+        </div>
+      </div><!-- /rps-strat -->
+
     </div><!-- /panelRight -->
 
   </div><!-- /main -->
@@ -1373,6 +1453,10 @@ input[type=range]::-webkit-slider-thumb {
     <button class="nav-tab" id="nt-log" onclick="mobileTab('log')">
       <span class="nav-tab-icon">📋</span>
       <span class="nav-tab-label">Logs</span>
+    </button>
+    <button class="nav-tab" id="nt-strat" onclick="mobileTab('strat')">
+      <span class="nav-tab-icon">🧠</span>
+      <span class="nav-tab-label">Strat</span>
     </button>
   </div>
 
@@ -1486,11 +1570,15 @@ function mobileTab(tab) {
     pr.style.display='flex'; pr.style.flexDirection='column';
     setRightTab('log');
   }
+  if(tab==='strat') {
+    pr.style.display='flex'; pr.style.flexDirection='column';
+    setRightTab('strat');
+  }
   // Update tab states
-  ['nt-chart','nt-ctrl','nt-scan','nt-log'].forEach(id=>{
+  ['nt-chart','nt-ctrl','nt-scan','nt-log','nt-strat'].forEach(id=>{
     const b=document.getElementById(id);
     if(!b)return;
-    const map={'nt-chart':'chart','nt-ctrl':'ctrl','nt-scan':'scan','nt-log':'log'};
+    const map={'nt-chart':'chart','nt-ctrl':'ctrl','nt-scan':'scan','nt-log':'log','nt-strat':'strat'};
     b.classList.toggle('active', map[id]===tab);
   });
 }
@@ -1808,6 +1896,10 @@ function closePos(exit, posArg){
   S.cooldown=exit==='SL'?16:S.strat==='scalper'?4:8;
   const exitLabel={SL:'SL',BE:'BE',TRAIL:'TRAIL',TP:'TP',TIMEOUT:'CLO'}[exit]||exit;
   addLog(p.coin,p.isBuy?'L':'S',p.entryPx,net,exitLabel);
+  addStratLog({coin:p.coin,dir:net>=0?'bull':'bear',strat:S.strat,score:null,
+    reason:`✅ ${exitLabel} — P&L ${net>=0?'+':''}$${net.toFixed(4)}`,
+    conds:`Phase ${p.phase} · ${p.ticks} ticks`,
+    details:`Entry $${p.entryPx.toFixed(2)} → Exit $${p.currentPx.toFixed(2)} · ${(p.pnlPct*100).toFixed(2)}%`});
   idbSaveTrade({ts:Date.now(),coin:p.coin,dir:p.isBuy?'L':'S',entry:p.entryPx,exit:p.currentPx,net,pct:p.pnlPct,lev:p.lev,strat:S.strat,exitLabel,mode:S.mode});
   idbSaveSession().then(()=>{
     const sbIDB=document.getElementById('sbIDB');
@@ -1852,8 +1944,28 @@ function botTick(){
     toast('Daily Loss -10% — Bot arrêté','err');return;
   }
   let isBuy,sDir,conf;
-  if(S.strat==='ultra'){const u=scoreUltra(coin);if(!u.valid||u.dir==='neutral'){S.skips++;return;}isBuy=u.dir==='bull';sDir=u.meta;conf=u.confidence;}
-  else if(S.strat==='julio'){const j=scoreJulio(coin);if(j.dir==='neutral'||j.score<60){S.skips++;return;}isBuy=j.dir==='bull';sDir=j.score;conf=j.confidence;}
+  if(S.strat==='ultra'){
+    const u=scoreUltra(coin);
+    if(!u.valid||u.dir==='neutral'){
+      addStratLog({coin,dir:'neutral',strat:'ULTRA',score:u.meta||0,
+        reason:`Meta ${u.meta}<68 ou directions divergentes`,conds:null,details:null});
+      S.skips++;return;
+    }
+    isBuy=u.dir==='bull';sDir=u.meta;conf=u.confidence;
+    addStratLog({coin,dir:u.dir,strat:'ULTRA',score:u.meta,
+      reason:`Meta-score ${u.meta} ≥68`,conds:null,details:`Conf:${conf.toFixed(0)}%`});
+  }
+  else if(S.strat==='julio'){
+    const j=scoreJulio(coin);
+    if(j.dir==='neutral'||j.score<60){
+      addStratLog({coin,dir:'neutral',strat:'JULIO',score:j.score,
+        reason:`Score ${j.score}<60`,conds:j.reasons?.join(' ')||'',details:null});
+      S.skips++;return;
+    }
+    isBuy=j.dir==='bull';sDir=j.score;conf=j.confidence;
+    addStratLog({coin,dir:j.dir,strat:'JULIO',score:j.score,
+      reason:`Score ${j.score} ≥60`,conds:j.reasons?.join(' ')||'',details:`Conf:${conf.toFixed(0)}%`});
+  }
   else if(S.strat==='scalper'){const sc=scoreScalper(coin);if(sc.dir==='neutral'||sc.confidence<55){S.skips++;return;}isBuy=sc.dir==='bull';sDir=sc.confidence;conf=sc.confidence;}
   else if(S.strat==='trend'){const tr=scoreTrend(coin);if(tr.dir==='neutral'||tr.confidence<60){S.skips++;return;}isBuy=tr.dir==='bull';sDir=tr.confidence;conf=tr.confidence;}
   else{const sc=S.scores[coin]||{};if(!sc||sc.dir==='neutral'||sc.scoreDir<S.thrDir||sc.scoreOpp<45){S.skips++;addLog(coin,'X',p,0,'SKIP');return;}isBuy=sc.dir==='bull';sDir=sc.scoreDir;conf=sc.confidence||60;}
@@ -1862,6 +1974,9 @@ function botTick(){
   const ePct=Math.min(.95,Math.max(S.cpt/100,kelly())*volM*ddM);
   const lev=S.lev,margin=Math.min(S.capital*ePct,S.capital*.95);
   const notional=Math.max(10,Math.min(margin*lev,S.capital*lev*.95));
+  addStratLog({coin,dir:isBuy?'bull':'bear',strat:S.strat,score:sDir,
+    reason:`🚀 ORDRE OUVERT ${isBuy?'LONG':'SHORT'} ${S.lev}×`,
+    conds:null,details:`Marge $${margin.toFixed(2)} · Not $${notional.toFixed(1)} · Conf:${conf.toFixed(0)}%`});
   if(S.mode==='live'&&S.walletConnected){
     hlOpenOrder(coin,isBuy,lev,margin,notional,p,sDir,conf).then(ok=>{if(ok)openPos(coin,isBuy,lev,margin,notional,p,sDir,conf);}).catch(e=>toast('Ordre échoué: '+e.message,'err'));
   }else{
@@ -1872,15 +1987,12 @@ function botTick(){
 
 /* ═══ SCANNER ═══ */
 function runScanner(){
-  detectRegime();COINS.forEach(c=>{S.scores[c]=scoreV12(c);});
-  let bestC=null,bestS=0;
-  COINS.forEach(c=>{const sc=S.scores[c];if(sc.dir==='neutral'||sc.scoreDir<S.thrDir||sc.scoreOpp<45)return;const comb=(sc.scoreDir*sc.scoreOpp)/100;if(comb>bestS){bestS=comb;bestC=c;}});
-  if(bestC&&!S.pos)setCoin(bestC,true);
-  renderScanner();renderSignals();renderTech();
+  // Alias vers logRunScanner() qui ajoute le log stratégie en temps réel
+  logRunScanner();
 }
 
 /* ═══ HYPERLIQUID LIVE ═══ */
-const HL_EIP712={name:'Exchange',version:'1',chainId:1337,verifyingContract:'0x0000000000000000000000000000000000000000'};
+const HL_EIP712={name:'Exchange',version:'1'}; // Sans chainId = MetaMask ne valide pas le réseau
 const HL_TYPES={Agent:[{name:'source',type:'string'},{name:'connectionId',type:'bytes32'}]};
 async function hlGetAsset(coin){
   if(hlAssets[coin])return hlAssets[coin];
@@ -1897,7 +2009,7 @@ async function hlSign(action,nonce){
   const msgToSign={source:'a',connectionId:`0x${nonce.toString(16).padStart(64,'0')}`};
   const typedData=JSON.stringify({
     domain:HL_EIP712,
-    types:{EIP712Domain:[{name:'name',type:'string'},{name:'version',type:'string'},{name:'chainId',type:'uint256'},{name:'verifyingContract',type:'address'}],...HL_TYPES},
+    types:{EIP712Domain:[{name:'name',type:'string'},{name:'version',type:'string'}],...HL_TYPES},
     primaryType:'Agent',
     message:msgToSign
   });
@@ -2235,6 +2347,8 @@ function schedRefresh(){
     updatePChart();renderSignals();renderTech();drawEquity();
     updateExtraCharts();
     if(S.pos)renderPos();
+    // Rendu log strat si onglet visible
+    const ss=document.getElementById('rps-strat');if(ss&&ss.classList.contains('show'))renderStratLog();
   });
 }
 
@@ -2274,6 +2388,9 @@ function updateModeUI(){
   if(tl){tl.className='mode-btn'+(S.mode==='live'?' on live':'');}
   const ph=document.getElementById('phMode');if(ph){ph.textContent=S.mode==='live'?'LIVE':'DÉMO';ph.style.color=S.mode==='live'?'var(--green)':'var(--gold)';}
   const sb=document.getElementById('sbMode');if(sb)sb.textContent=S.mode.toUpperCase();
+  // Mettre à jour le bouton refill selon le mode
+  const rb=document.getElementById('refillBtn');
+  if(rb){rb.textContent=S.mode==='live'?'↺ Solde':'+ $10';rb.title=S.mode==='live'?'Rafraîchir le solde Hyperliquid':'Ajouter $10 virtuel (démo)';}
 }
 function setCoin(c,silent=false){
   if(S.pos&&!silent){toast('Position ouverte — attendre fermeture','warn');return;}
@@ -2287,7 +2404,11 @@ function setCoin(c,silent=false){
   if(emaChartInst){emaChartInst.data.labels=[];emaChartInst.data.datasets.forEach(d=>d.data=[]);emaChartInst.update('none');}
   document.querySelectorAll('.coin-btn').forEach(b=>b.classList.toggle('active',b.textContent===c));
   if(ws&&wsOk)wsSend({method:'subscribe',subscription:{type:'l2Book',coin:c}});
-  if(!silent)toast(`${c}-PERP sélectionné`,'info');
+  updateLevButtons(); // Leviers adaptés au jeton
+  if(!silent){
+    const maxLev = HL_CATALOG[c]?.maxLev || '?';
+    toast(`${c}-PERP · levier max ${maxLev}×`,'info');
+  }
   const btc=document.getElementById('btCoin'); if(btc) btc.textContent=c;
 }
 function setLev(v){
@@ -2301,7 +2422,35 @@ function upTrail(v){T.START=parseFloat(v)/100;const el=document.getElementById('
 function upCBThr(v){S.cbThr=parseInt(v);const el=document.getElementById('pCB');if(el)el.textContent=v;}
 function upMaxPos(v){S.maxPositions=parseInt(v);const el=document.getElementById('pMaxPos');if(el)el.textContent=v;
   toast(`Max positions : ${v}`,'info');}
-function demoRefill(){S.capital+=10;if(S.capital>S.peak)S.peak=S.capital;updateCap();toast('+$10 ajouté','ok');}
+function demoRefill(){
+  if(S.mode==='live'){
+    // En LIVE : recharger le vrai solde depuis Hyperliquid au lieu d'ajouter virtuellement
+    if(!S.walletAddr){toast('Connecte MetaMask pour rafraîchir le solde','warn');return;}
+    toast('Chargement du solde réel…','info');
+    fetch(HL_INFO,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'clearinghouseState',user:S.walletAddr}),
+      signal:AbortSignal.timeout(8000)})
+    .then(r=>r.json())
+    .then(d=>{
+      const bal=parseFloat(d.marginSummary?.accountValue||d.crossMarginSummary?.accountValue||0);
+      if(bal>0){
+        S.capital=bal;
+        if(bal>S.peak)S.peak=bal;
+        updateCap();
+        toast('Solde HL actualisé — $'+bal.toFixed(2),'ok');
+        idbSaveSession();
+      } else {
+        toast('Impossible de charger le solde (0 ou erreur)','warn');
+      }
+    })
+    .catch(e=>toast('Erreur solde HL: '+e.message,'err'));
+    return;
+  }
+  // Mode DEMO : ajouter $10 virtuel
+  S.capital+=10;if(S.capital>S.peak)S.peak=S.capital;updateCap();
+  idbSaveSession();
+  toast('+$10 virtuel ajouté','ok');
+}
 function resetSess(){
   if(S.running){toast('Arrêter le bot avant de reset','warn');return;}
   S.capital=10;S.init=10;S.peak=10;S.trades=0;S.wins=0;S.totalPnl=0;S.maxDD=0;
@@ -2878,7 +3027,7 @@ function updateExtraCharts() {
 
 /* ═══ ONGLETS PANNEAU DROIT ════════════════════════════════════ */
 function setRightTab(tab) {
-  ['scan','log'].forEach(t => {
+  ['scan','log','strat'].forEach(t => {
     const btn = document.getElementById('rpt-'+t);
     const sec = document.getElementById('rps-'+t);
     if(btn) btn.classList.toggle('active', t===tab);
@@ -2889,6 +3038,366 @@ function setRightTab(tab) {
     const logBody = document.getElementById('logBody');
     if(logBody) logBody.scrollTop = 0;
   }
+}
+
+
+/* ═══ AUTO-REFRESH SOLDE LIVE ════════════════════════════════
+   En mode LIVE : rafraîchit le solde Hyperliquid toutes les 30s
+   (sans perturber le bot ni les positions en cours) */
+setInterval(async ()=>{
+  if(S.mode!=='live'||!S.walletAddr||!S.walletConnected)return;
+  if(S.running&&S.positions.size>0)return; // pas pendant un trade actif
+  try{
+    const r=await fetch(HL_INFO,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'clearinghouseState',user:S.walletAddr}),
+      signal:AbortSignal.timeout(6000)});
+    const d=await r.json();
+    const bal=parseFloat(d.marginSummary?.accountValue||d.crossMarginSummary?.accountValue||0);
+    if(bal>0&&Math.abs(bal-S.capital)>0.01){
+      // Mise à jour silencieuse si différence > 1 centime
+      S.capital=bal;if(bal>S.peak)S.peak=bal;
+      updateCap();idbSaveSession();
+    }
+  }catch(_){}
+},30000); // toutes les 30 secondes
+
+
+/* ═══ CATALOGUE JETONS HYPERLIQUID ════════════════════════════
+   maxLev = levier maximum autorisé sur Hyperliquid pour ce jeton
+   Leviers disponibles : 1x jusqu'à maxLev (paliers adaptatifs)
+   Source : https://hyperliquid.gitbook.io/hyperliquid-docs */
+const HL_CATALOG = {
+  // ── Majors ─────────────────────────────────────────────────────
+  // BTC : 40× (réduit depuis mars 2025, incident ETH 50×)
+  // ETH : 25× (réduit depuis mars 2025 — source officielle HL)
+  // SOL : 40× (bonne liquidité, major HL)
+  'BTC':   {maxLev:40,  cat:'Major',   icon:'₿'},
+  'ETH':   {maxLev:25,  cat:'Major',   icon:'Ξ'},
+  'SOL':   {maxLev:40,  cat:'Major',   icon:'◎'},
+  // ── L1 / L2 ────────────────────────────────────────────────────
+  'BNB':   {maxLev:15,  cat:'L1',      icon:'⬡'},
+  'AVAX':  {maxLev:20,  cat:'L1',      icon:'▲'},
+  'NEAR':  {maxLev:20,  cat:'L1',      icon:'Ⓝ'},
+  'APT':   {maxLev:20,  cat:'L1',      icon:'△'},
+  'SUI':   {maxLev:20,  cat:'L1',      icon:'💧'},
+  'ARB':   {maxLev:20,  cat:'L2',      icon:'⧫'},
+  'OP':    {maxLev:20,  cat:'L2',      icon:'⬤'},
+  'MATIC': {maxLev:20,  cat:'L2',      icon:'◈'},
+  // ── DeFi ───────────────────────────────────────────────────────
+  'LINK':  {maxLev:20,  cat:'DeFi',    icon:'⬡'},
+  'AAVE':  {maxLev:10,  cat:'DeFi',    icon:'◆'},
+  'UNI':   {maxLev:10,  cat:'DeFi',    icon:'🦄'},
+  'CRV':   {maxLev:10,  cat:'DeFi',    icon:'◎'},
+  'INJ':   {maxLev:20,  cat:'DeFi',    icon:'◈'},
+  // ── Ecosystem Hyperliquid ───────────────────────────────────────
+  // HYPE : 40× (natif HL, docs officiels: BTC et HYPE à 40×)
+  'HYPE':  {maxLev:40,  cat:'HL',      icon:'⚡'},
+  // ── Meme ───────────────────────────────────────────────────────
+  // DOGE : 25× (plus liquide des memes)
+  // WIF/PEPE : 20× (memes mid-cap)
+  // BONK/FLOKI : 10× (memes small-cap, peu liquides)
+  'DOGE':  {maxLev:25,  cat:'Meme',    icon:'Ð'},
+  'WIF':   {maxLev:20,  cat:'Meme',    icon:'🐶'},
+  'PEPE':  {maxLev:20,  cat:'Meme',    icon:'🐸'},
+  'BONK':  {maxLev:10,  cat:'Meme',    icon:'🔨'},
+  'FLOKI': {maxLev:10,  cat:'Meme',    icon:'⚡'},
+  // ── AI / Other ─────────────────────────────────────────────────
+  'WLD':   {maxLev:20,  cat:'AI',      icon:'🌐'},
+  'FET':   {maxLev:20,  cat:'AI',      icon:'🤖'},
+  'TIA':   {maxLev:20,  cat:'Other',   icon:'☽'},
+  'SEI':   {maxLev:20,  cat:'Other',   icon:'◉'},
+};
+
+// Sélection active (modifiable par l'utilisateur)
+// Défaut : les 6 jetons d'origine
+let ACTIVE_COINS = ['BTC','ETH','SOL','HYPE','WIF','ARB'];
+
+// Mettre à jour COINS et reconfigurer WS/sim selon la sélection
+function applyActiveCoins() {
+  const prev = [...COINS];
+  // Vider et repeupler le tableau COINS global
+  COINS.length = 0;
+  ACTIVE_COINS.forEach(c => COINS.push(c));
+  // Initialiser les structures de données pour les nouveaux jetons
+  COINS.forEach(c => {
+    if(!pxM[c])       { pxM[c]=null; prevM[c]=null; ctxM[c]={}; books[c]={bids:[],asks:[]}; ph[c]=[]; }
+    if(!e9m[c])       { e9m[c]=null; e21m[c]=null; e50m[c]=null; rsiM[c]=50; atrM[c]=0; }
+    if(!vwM[c])       { vwM[c]=null; vwPV[c]=0; vwV[c]=0; ofiH[c]=[]; }
+    if(!macdM[c])     { macdM[c]={e12:null,e26:null,sig:null,hist:[],last:0}; bbM[c]={}; }
+    if(!BASE_PX[c])   { BASE_PX[c]=100; } // fallback prix
+    if(!S.scores[c])  { S.scores[c]=null; }
+  });
+  // Réabonner le WS aux nouveaux jetons
+  if(wsOk) {
+    COINS.forEach(c => {
+      wsSend({method:'subscribe', subscription:{type:'activeAssetCtx', coin:c}});
+    });
+  }
+  // Mettre à jour le levier max du jeton actif si nécessaire
+  if(!COINS.includes(S.coin)) setCoin(COINS[0], true);
+  updateLevButtons();
+  renderCoinSelector();
+  renderScanner();
+  toast(`${COINS.length} jetons actifs : ${COINS.join(', ')}`, 'info');
+  // Persister dans localStorage (léger, juste la liste)
+  try { localStorage.setItem('qsv5_coins', JSON.stringify(ACTIVE_COINS)); } catch(_){}
+}
+
+// Calculer les paliers de levier pour un jeton
+function getLevSteps(coin) {
+  const maxLev = HL_CATALOG[coin]?.maxLev || 20;
+  if(maxLev <= 10)  return [1, 2, 3, 5, maxLev];
+  if(maxLev <= 20)  return [1, 3, 5, 10, maxLev];
+  if(maxLev <= 25)  return [1, 3, 5, 10, 20, maxLev];
+  if(maxLev <= 50)  return [1, 5, 10, 20, 33, maxLev];
+  return [1, 5, 10, 20, 33, 50];
+}
+
+// Mettre à jour les boutons de levier pour le jeton courant
+function updateLevButtons() {
+  const steps = getLevSteps(S.coin);
+  const maxLev = HL_CATALOG[S.coin]?.maxLev || 20;
+  // Limiter le levier actuel si trop élevé pour ce jeton
+  if(S.lev > maxLev) { S.lev = steps[Math.floor(steps.length/2)]; }
+  const grid = document.getElementById('levRow');
+  if(!grid) return;
+  grid.innerHTML = steps.map(l =>
+    `<button class="lev-btn${l===S.lev?' on':''}" onclick="setLev(${l})">${l}×</button>`
+  ).join('');
+}
+
+
+/* ═══ SÉLECTEUR DE JETONS — LOGIQUE ══════════════════════════ */
+
+let _selectedCoins = [...ACTIVE_COINS]; // sélection temporaire dans le modal
+let _activeCat = 'Tous';
+
+function renderCoinSelector() {
+  // Met à jour le coin-grid (jetons actifs en haut du panneau gauche)
+  const grid = document.getElementById('coinGrid');
+  if(!grid) return;
+  const n = COINS.length;
+  const cols = n <= 3 ? n : n <= 6 ? 3 : 4;
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.style.display = 'grid';
+  grid.innerHTML = COINS.map((c,i) => {
+    const isActive = c === S.coin;
+    const borderR = (i+1)%cols===0 ? 'none' : '1px solid var(--border)';
+    const borderB = i >= n-cols ? 'none' : '1px solid var(--border)';
+    return `<button class="coin-btn${isActive?' active':''}" onclick="setCoin('${c}')"
+      style="border-right:${borderR};border-bottom:${borderB}">${c}</button>`;
+  }).join('');
+  // Mettre à jour le compteur
+  const cnt = document.getElementById('activeCoinCount');
+  if(cnt) cnt.textContent = `${n} jeton${n>1?'s':''} actif${n>1?'s':''}`;
+}
+
+function openCoinSelector() {
+  _selectedCoins = [...ACTIVE_COINS];
+  _activeCat = 'Tous';
+  renderCoinModal();
+  document.getElementById('coinModal').style.display = 'flex';
+}
+
+function closeCoinSelector() {
+  document.getElementById('coinModal').style.display = 'none';
+}
+
+function renderCoinModal() {
+  // Filtres de catégorie
+  const cats = ['Tous', ...new Set(Object.values(HL_CATALOG).map(v=>v.cat))];
+  const cf = document.getElementById('catFilters');
+  if(cf) cf.innerHTML = cats.map(cat => `
+    <button onclick="filterCat('${cat}')"
+      style="padding:4px 12px;border-radius:20px;border:1px solid var(--border2);
+             background:${cat===_activeCat?'var(--gold)':'transparent'};
+             color:${cat===_activeCat?'#000':'var(--t3)'};
+             font-family:var(--mono);font-size:10px;cursor:pointer;transition:all .15s;font-weight:${cat===_activeCat?'700':'400'}">
+      ${cat}
+    </button>`).join('');
+
+  // Grille des jetons filtrés
+  const ccg = document.getElementById('coinCatalogGrid');
+  if(!ccg) return;
+  const entries = Object.entries(HL_CATALOG).filter(([,v]) => _activeCat==='Tous'||v.cat===_activeCat);
+  ccg.innerHTML = entries.map(([coin,info]) => {
+    const isSelected = _selectedCoins.includes(coin);
+    return `<button onclick="toggleCoinSelect('${coin}')"
+      style="padding:10px 6px;border-radius:10px;
+             border:1px solid ${isSelected?'rgba(240,165,0,.5)':'var(--border)'};
+             background:${isSelected?'var(--gold-dim)':'var(--surface)'};
+             color:${isSelected?'var(--gold)':'var(--t3)'};
+             font-family:var(--mono);font-size:10px;cursor:pointer;
+             transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:3px;
+             font-weight:${isSelected?'700':'400'}">
+        <span style="font-size:14px">${info.icon}</span>
+        <span style="font-size:10px;font-weight:700;color:${isSelected?'var(--gold)':'var(--t2)'}">${coin}</span>
+        <span style="font-size:8px;color:var(--t3)">${info.cat}</span>
+        <span style="font-size:8px;color:${isSelected?'var(--gold)':'var(--t4)'}">${info.maxLev}× max</span>
+      </button>`;
+  }).join('');
+}
+
+function filterCat(cat) {
+  _activeCat = cat;
+  renderCoinModal();
+}
+
+function toggleCoinSelect(coin) {
+  const idx = _selectedCoins.indexOf(coin);
+  if(idx >= 0) {
+    if(_selectedCoins.length <= 1) { toast('Minimum 1 jeton requis','warn'); return; }
+    _selectedCoins.splice(idx, 1);
+  } else {
+    if(_selectedCoins.length >= 8) { toast('Maximum 8 jetons à la fois','warn'); return; }
+    _selectedCoins.push(coin);
+  }
+  renderCoinModal();
+}
+
+function confirmCoinSelection() {
+  ACTIVE_COINS = [..._selectedCoins];
+  closeCoinSelector();
+  applyActiveCoins();
+}
+
+// Charger la sélection sauvegardée
+function loadSavedCoins() {
+  try {
+    const saved = localStorage.getItem('qsv5_coins');
+    if(saved) {
+      const parsed = JSON.parse(saved);
+      // Valider que tous les coins sont dans le catalogue
+      const valid = parsed.filter(c => HL_CATALOG[c]);
+      if(valid.length > 0) {
+        ACTIVE_COINS = valid;
+        COINS.length = 0;
+        ACTIVE_COINS.forEach(c => COINS.push(c));
+      }
+    }
+  } catch(_) {}
+}
+
+
+/* ═══ LOG STRATÉGIE EN TEMPS RÉEL ════════════════════════════
+   Chaque analyse de signal est loguée avec ses indicateurs.
+   Mis à jour à chaque scan (toutes les 2.5s) */
+
+const SLOG = []; // buffer circulaire, max 200 entrées
+const SLOG_MAX = 200;
+let slogPaused = false; // pause si l'utilisateur scroll
+
+function addStratLog(entry) {
+  // entry : {coin, dir, strat, score, reason, conds, details, ts}
+  SLOG.unshift({...entry, ts: new Date()});
+  if(SLOG.length > SLOG_MAX) SLOG.pop();
+  renderStratLog();
+}
+
+function renderStratLog() {
+  const el = document.getElementById('stratLogBody');
+  if(!el) return;
+  // Ne pas re-render si l'onglet n'est pas visible (perf)
+  const section = document.getElementById('rps-strat');
+  if(!section || !section.classList.contains('show')) return;
+
+  el.innerHTML = SLOG.slice(0,80).map(e => {
+    const ts = `${String(e.ts.getHours()).padStart(2,'0')}:${String(e.ts.getMinutes()).padStart(2,'0')}:${String(e.ts.getSeconds()).padStart(2,'0')}`;
+    const isSignal = e.dir === 'bull' || e.dir === 'bear';
+    const isHalt   = e.dir === 'halt';
+    const rowCls   = isHalt ? 'signal-halt' : isSignal ? `signal-${e.dir}` : 'signal-skip';
+    const dirLabel = e.dir === 'bull' ? '▲ LONG' : e.dir === 'bear' ? '▼ SHORT' : e.dir === 'halt' ? '⚡ HALT' : '— SKIP';
+    const dirCls   = e.dir === 'bull' ? 'bull' : e.dir === 'bear' ? 'bear' : 'skip';
+    const scoreStr = e.score ? `<span class="slog-score" style="color:${e.score>=S.thrDir?'var(--green)':'var(--t3)'}">[${e.score}]</span> ` : '';
+    return `<div class="slog-row ${rowCls}">
+      <span class="slog-ts">${ts}</span>
+      <span class="slog-coin">${e.coin}</span>
+      <span class="slog-dir ${dirCls}">${dirLabel}</span>
+      ${scoreStr}<span class="slog-reason">${e.reason||''}</span>
+      ${e.conds ? `<div class="slog-conds">${e.conds}</div>` : ''}
+      ${e.details ? `<div class="slog-conds" style="color:var(--t4)">${e.details}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function clearStratLog() {
+  SLOG.length = 0;
+  const el = document.getElementById('stratLogBody');
+  if(el) el.innerHTML = '<div style="padding:20px;text-align:center;font-size:10px;color:var(--t3)">Log effacé.</div>';
+}
+
+// Forcer le rendu quand on ouvre l'onglet Strat
+const _origSetRightTab = setRightTab;
+function setRightTab(tab) {
+  _origSetRightTab(tab);
+  if(tab === 'strat') renderStratLog();
+}
+
+/* ═══ ANALYSE STRATÉGIE AVEC LOG ══════════════════════════════
+   logRunScanner() remplace runScanner() en ajoutant le log */
+
+function logRunScanner() {
+  detectRegime();
+  const now = new Date();
+
+  // Circuit Breaker : log si HALT
+  if(S.cbHalt) {
+    addStratLog({coin:S.coin, dir:'halt', strat:'CB', score:null,
+      reason: `Circuit Breaker HALT — ${S.cbCool} ticks restants`,
+      conds: null, details: null});
+    renderScanner(); renderSignals(); renderTech();
+    return;
+  }
+
+  // Scanner tous les coins actifs
+  COINS.forEach(c => {
+    S.scores[c] = scoreV12(c);
+    const sc = S.scores[c];
+    const p  = pxM[c] || 0;
+    if(!p) return;
+
+    const ofi   = sc.ofi ? sc.ofi.toFixed(0) : '?';
+    const rsi   = sc.rsi ? sc.rsi.toFixed(0) : '?';
+    const e9v   = e9m[c] ? e9m[c].toFixed(2) : '?';
+    const atrPct= (atrM[c]&&p) ? (atrM[c]/p*100).toFixed(2)+'%' : '?';
+    const vwapOk= vwM[c] ? (p > vwM[c] ? '↑VWAP' : '↓VWAP') : '';
+    const emaStr= sc.bullS ? 'EMA↑' : sc.bearS ? 'EMA↓' : 'EMA~';
+
+    const details = `OFI:${ofi} RSI:${rsi} ATR:${atrPct} ${emaStr} ${vwapOk} Mom:${sc.condsMet}/5`;
+
+    if(sc.dir !== 'neutral') {
+      // Signal valide
+      let reason = `Dir:${sc.scoreDir} Opp:${sc.scoreOpp}`;
+      if(sc.scoreDir < S.thrDir) reason += ` ← seuil:${S.thrDir}`;
+      if(sc.scoreOpp < 45)       reason += ` ← opp<45`;
+      const condList = [
+        sc.emaTr>=1?'✓EMA':'✗EMA',
+        sc.ofi>S.thrDir?'✓OFI':'✗OFI',
+        sc.mom>=.5?'✓Mom':'✗Mom',
+        (sc.rsi>=40&&sc.rsi<=65)?'✓RSI':'✗RSI',
+        (sc.vwap&&p>sc.vwap)?'✓VWAP':'✗VWAP',
+      ].join(' ');
+      addStratLog({coin:c, dir:sc.dir, strat:S.strat, score:sc.scoreDir, reason, conds:condList, details});
+    } else if(c === S.coin) {
+      // Log SKIP uniquement pour le coin actif (éviter le spam)
+      const reason = sc.condsMet < 2
+        ? `Conditions insuffisantes ${sc.condsMet}/5`
+        : `Dir:${sc.scoreDir}<${S.thrDir} — signal trop faible`;
+      addStratLog({coin:c, dir:'neutral', strat:S.strat, score:sc.scoreDir, reason, conds:null, details});
+    }
+  });
+
+  // Sélection meilleur coin
+  let bestC = null, bestS = 0;
+  COINS.forEach(c => {
+    const sc = S.scores[c];
+    if(!sc || sc.dir==='neutral' || sc.scoreDir<S.thrDir || sc.scoreOpp<45) return;
+    const comb = (sc.scoreDir*sc.scoreOpp)/100;
+    if(comb > bestS) { bestS=comb; bestC=c; }
+  });
+  if(bestC && !S.pos) setCoin(bestC, true);
+
+  renderScanner(); renderSignals(); renderTech();
 }
 
 /* ═══ BOOT ═══ */
@@ -2902,7 +3411,7 @@ async function boot(){
   }
   const spl=document.getElementById('splash');if(spl)spl.classList.add('out');
   setTimeout(()=>{
-    initCharts();initExtraCharts();renderCB();renderScanner();
+    loadSavedCoins();initCharts();initExtraCharts();renderCB();renderScanner();renderCoinSelector();updateLevButtons();
     applyLayout();
     setStrat('v12');
     setTimeout(()=>openModal(),600);
